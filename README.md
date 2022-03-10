@@ -16,6 +16,8 @@ cargo run --release <input_file> <output_npy_file> fmin fmax --frame_ms <frame l
 
 ## TODO
 
+- shared library
+- Accelerate algorithm by multi-threading if possible
 - Multi-channel audio support
 - Input from stdio
 - More options supported by command-line arguments
