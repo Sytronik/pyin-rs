@@ -63,7 +63,7 @@ use rustfft::num_traits::Float;
 /// assert!(path.into_iter().zip([0, 0, 1].into_iter()).all(|(x, y)| x == y));
 /// assert!((logp - (-4.19173690823075)).abs() < 1e-14);
 /// ```
-pub fn viterbi<A>(
+pub(crate) fn viterbi<A>(
     prob: ArrayView2<A>,
     transition: ArrayView2<A>,
     p_init: Option<CowArray<A, Ix1>>,

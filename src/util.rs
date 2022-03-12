@@ -9,7 +9,7 @@ use crate::pad::{Pad, PadMode};
 use crate::roll::Roll;
 use crate::windows::{calc_normalized_win, WindowType};
 
-pub fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
+pub(crate) fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
     frames: ArrayView2<A>,
 ) -> Array2<A> {
     assert!(frames.shape()[0] > 2);
@@ -28,12 +28,12 @@ pub fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
     parabolic_shifts.pad((1, 1), Axis(0), PadMode::Constant(A::zero()))
 }
 
-pub fn boltzmann_pmf(k: isize, lambda: f64, n: usize) -> f64 {
+pub(crate) fn boltzmann_pmf(k: isize, lambda: f64, n: usize) -> f64 {
     let fact = (1.0 - (-lambda).exp()) / (1.0 - (-lambda * n as f64).exp());
     fact * (-lambda * k as f64).exp()
 }
 
-pub fn transition_local<A>(
+pub(crate) fn transition_local<A>(
     n_states: usize,
     width: usize,
     win_type: WindowType,

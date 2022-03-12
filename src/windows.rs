@@ -5,7 +5,7 @@ use rustfft::num_traits::{Float, FloatConst, FromPrimitive, ToPrimitive};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
-pub enum WindowType {
+pub(crate) enum WindowType {
     Hann,
     Blackman,
     Triangle,
@@ -13,7 +13,7 @@ pub enum WindowType {
 }
 
 #[inline]
-pub fn calc_normalized_win<T>(
+pub(crate) fn calc_normalized_win<T>(
     win_type: WindowType,
     size: usize,
     norm_factor: impl ToPrimitive,
@@ -31,7 +31,7 @@ where
     }
 }
 
-pub fn triangle<T>(size: usize, symmetric: bool) -> Array1<T>
+pub(crate) fn triangle<T>(size: usize, symmetric: bool) -> Array1<T>
 where
     T: Float + FromPrimitive + ScalarOperand,
 {
@@ -61,7 +61,7 @@ where
 }
 
 #[inline]
-pub fn hann<T>(size: usize, symmetric: bool) -> Array1<T>
+pub(crate) fn hann<T>(size: usize, symmetric: bool) -> Array1<T>
 where
     T: Float + FloatConst + FromPrimitive,
 {
@@ -76,7 +76,7 @@ where
 }
 
 // from rubato crate
-pub fn blackman<T>(size: usize, symmetric: bool) -> Array1<T>
+pub(crate) fn blackman<T>(size: usize, symmetric: bool) -> Array1<T>
 where
     T: Float + FloatConst + FromPrimitive,
 {

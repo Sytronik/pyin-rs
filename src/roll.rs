@@ -1,6 +1,6 @@
 use ndarray::{concatenate, prelude::*, Data, OwnedRepr, RemoveAxis, Slice};
 
-pub trait Roll<A> {
+pub(crate) trait Roll<A> {
     type WithOwnedA;
     fn roll(&self, shift: isize, axis: Axis) -> Self::WithOwnedA;
 }
