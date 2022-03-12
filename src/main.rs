@@ -1,10 +1,3 @@
-mod pad;
-mod pyin;
-mod roll;
-mod util;
-mod viterbi;
-mod windows;
-
 use std::fs::File;
 use std::io;
 
@@ -15,7 +8,7 @@ use ndarray_npy::WriteNpyExt;
 use rodio::decoder::DecoderError;
 use rodio::{Decoder, Source};
 
-use pyin::PYinExecutor;
+use pyin::{pad::PadMode, PYinExecutor};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -39,7 +32,7 @@ struct Cli {
     #[clap(short, long)]
     verbose: bool,
 }
-pub fn decode_audio_file(file: File) -> Result<(Array2<f32>, u32), DecoderError> {
+fn decode_audio_file(file: File) -> Result<(Array2<f32>, u32), DecoderError> {
     let source = Decoder::new(io::BufReader::new(file))?;
     let sr = source.sample_rate();
     let channels = source.channels() as usize;
@@ -92,7 +85,7 @@ fn main() {
         hop_length,
         cli.resolution,
     );
-    let (f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, f64::NAN, true, pad::PadMode::Reflect);
+    let (f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, f64::NAN, true, PadMode::Reflect);
 
     if cli.verbose && &cli.output != "-" {
         println!("f0 = {}", f0);

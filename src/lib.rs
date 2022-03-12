@@ -1,4 +1,11 @@
 //! Reference: https://librosa.org/doc/0.8.1/_modules/librosa/core/pitch.html#pyin
+
+pub mod pad;
+mod roll;
+mod util;
+mod viterbi;
+mod windows;
+
 use std::cmp::Ord;
 use std::iter;
 use std::mem::MaybeUninit;

@@ -5,6 +5,14 @@ license = "MIT"
 name = "pyin"
 version = "0.1.0"
 
+[lib]
+name = "pyin"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pyin"
+path = "src/main.rs"
+
 [dependencies]
 approx = "0.5.0"
 clap = {version = "3.1.6", features = ["derive"]}
