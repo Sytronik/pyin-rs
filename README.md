@@ -2,10 +2,25 @@
 
 The implementation is based on [librosa](https://librosa.org/doc/0.8.1/_modules/librosa/core/pitch.html#pyin).
 
-## Run
+## Build & Run
+
+### Build
 
 ```
-cargo run --release <input_file> <output_npy_file> fmin fmax --frame_ms <frame length in miliseconds>
+cargo build --release
+```
+
+### Build and run test/test.c to test C shared library
+
+```
+./compile_test.sh
+LD_LIBRARY_PATH=target/release ./test_pyin
+```
+
+### Run executable binary
+
+```
+cargo run --release <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
 ```
 
 ## Note
@@ -16,7 +31,6 @@ cargo run --release <input_file> <output_npy_file> fmin fmax --frame_ms <frame l
 
 ## TODO
 
-- shared library
 - Accelerate algorithm by multi-threading if possible
 - Multi-channel audio support
 - Input from stdio
