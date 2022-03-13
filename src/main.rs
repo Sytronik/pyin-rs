@@ -13,22 +13,36 @@ use pyin::{pad::PadMode, PYinExecutor};
 #[derive(Parser)]
 #[clap(author, version, about)]
 struct Cli {
+    /// input file path.
     input: String,
+
+    /// output file path. if "-", write to stdout.
     output: String,
+
+    /// minimum frequency in Hz.
     fmin: f64,
+
+    /// maximum frequency in Hz.
     fmax: f64,
 
+    /// frame length in milliseconds.
     #[clap(short, long, default_value_t = 80f64)]
     frame_ms: f64,
 
+    /// length of the window for calculating autocorrelation in milliseconds. [default: frame_ms / 2]
     #[clap(long)]
     win_ms: Option<f64>,
+
+    /// gap between adjacent pYIN predictions in milliseconds. [default: frame_ms / 4]
     #[clap(long)]
     hop_ms: Option<f64>,
+
+    /// Resolution of the pitch bins. 0.01 corresponds to cents. [default: 0.1]
     #[clap(long)]
     resolution: Option<f64>,
     /*  #[clap(short, long)]
     sr: Option<u32>,*/
+    /// Whether print results to stdout or not. if output is "-", this argument is ignored.
     #[clap(short, long)]
     verbose: bool,
 }

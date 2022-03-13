@@ -6,10 +6,13 @@
 // The caller must call free on f0, voiced_flag, voiced_prob to
 // prevent a memory leak.
 int pyin(
+    // outputs
     double **f0,
     bool **voiced_flag,
     double **voiced_prob,
     unsigned int *n_frames,
+
+    // inputs
     const double *input,
     unsigned int length,
     unsigned int sr,
