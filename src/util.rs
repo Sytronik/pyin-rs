@@ -1,8 +1,8 @@
 use std::cmp::Ord;
 use std::fmt::Debug;
-use std::ops::{Add, DivAssign, Mul, Neg};
+use std::ops::{Add, DivAssign, Mul};
 
-use ndarray::{prelude::*, ScalarOperand};
+use ndarray::{prelude::*, ScalarOperand, Zip};
 use realfft::num_traits::{Float, FloatConst, FromPrimitive};
 
 use crate::pad::{Pad, PadMode};
@@ -19,7 +19,7 @@ pub(crate) fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
     let parabola_b =
         (&frames.slice(s![2.., ..]) - &frames.slice(s![..-2, ..])) / A::from(2.0).unwrap();
     let mut parabolic_shifts =
-        &parabola_b.neg() / (&parabola_a * A::from(2.0).unwrap() + A::min_positive_value());
+        &(-parabola_b) / (&parabola_a * A::from(2.0).unwrap() + A::min_positive_value());
     parabolic_shifts.mapv_inplace(|x| if x.abs() <= A::one() { x } else { A::zero() });
     parabolic_shifts.pad((1, 1), Axis(0), PadMode::Constant(A::zero()))
 }
@@ -36,35 +36,33 @@ pub(crate) fn transition_local<A>(
     wrap: bool,
 ) -> Array2<A>
 where
-    A: Float + FloatConst + FromPrimitive + DivAssign + ScalarOperand + Debug,
+    A: Float + FloatConst + FromPrimitive + DivAssign + ScalarOperand + Debug + Send,
 {
     assert!(n_states > 1);
     assert!(width > 0);
     assert!(width < n_states);
+    let range: Array1<_> = (0..n_states).collect();
     let width_arr = Array1::from_elem(n_states, width);
     let mut transition = Array2::<A>::zeros((n_states, n_states));
-
-    for (i, width_i) in width_arr.into_iter().enumerate() {
-        let trans_row = calc_normalized_win(win_type, width_i, A::one(), true);
-        let n_pad_left = (n_states - width_i) / 2;
-        let n_pad_right = n_states - width_i - n_pad_left;
-        let mut trans_row = trans_row
-            .pad(
-                (n_pad_left, n_pad_right),
-                Axis(0),
-                PadMode::Constant(A::zero()),
-            )
-            .roll(((n_states / 2 + i + 1) % n_states) as isize, Axis(0));
-        if !wrap {
+    Zip::from(&range)
+        .and(&width_arr)
+        .and(transition.axis_iter_mut(Axis(0)))
+        .for_each(|&i, &width_i, mut trans_row| {
+            let n_pad_left = (n_states - width_i) / 2;
             trans_row
-                .slice_mut(s![(i + width_i / 2 + 1).min(n_states)..])
-                .fill(A::zero());
+                .slice_mut(s![n_pad_left..(n_pad_left + width_i)])
+                .assign(&calc_normalized_win(win_type, width_i, A::one(), true));
             trans_row
-                .slice_mut(s![..(i as isize - width_i as isize / 2).max(0)])
-                .fill(A::zero());
-        }
-        transition.index_axis_mut(Axis(0), i).assign(&trans_row);
-    }
+                .assign(&trans_row.roll(((n_states / 2 + i + 1) % n_states) as isize, Axis(0)));
+            if !wrap {
+                trans_row
+                    .slice_mut(s![(i + width_i / 2 + 1).min(n_states)..])
+                    .fill(A::zero());
+                trans_row
+                    .slice_mut(s![..(i as isize - width_i as isize / 2).max(0)])
+                    .fill(A::zero());
+            }
+        });
 
     // Row-normalize
     transition /= &transition.sum_axis(Axis(1)).insert_axis(Axis(1));

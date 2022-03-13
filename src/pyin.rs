@@ -3,12 +3,12 @@
 use std::cmp::Ord;
 use std::iter;
 use std::mem::MaybeUninit;
-use std::ops::{Add, DivAssign, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, DivAssign, Mul, MulAssign, Sub};
 use std::sync::Arc;
 
 use approx::AbsDiffEq;
 use getset::{CopyGetters, Getters, Setters};
-use ndarray::{prelude::*, ScalarOperand};
+use ndarray::{prelude::*, ScalarOperand, Zip};
 use ndarray_stats::{MaybeNan, QuantileExt};
 use realfft::{
     num_complex::Complex,
@@ -170,79 +170,76 @@ where
             .collect();
 
         let mut yin_probs = Array2::<A>::zeros(yin_frames.raw_dim());
-        for (i_frame, yin_frame) in yin_frames.axis_iter(Axis(1)).enumerate() {
-            // 2. For each frame find the troughs.
-            let idxs_trough: Array1<_> = iter::once(yin_frame[0] < yin_frame[1])
-                .chain(
-                    yin_frame
-                        .windows(3)
-                        .into_iter()
-                        .map(|x| x[1] < x[0] && x[1] <= x[2]),
-                )
-                .chain(iter::once(
-                    yin_frame[yin_frame.len() - 1] < yin_frame[yin_frame.len() - 2],
-                ))
-                .enumerate()
-                .filter_map(|(i, x)| if x { Some(i) } else { None })
-                .collect();
-
-            if idxs_trough.is_empty() {
-                continue;
-            }
-
-            // 3. Find the troughs below each threshold.
-            // let trough_heights: Array1<_> = trough_index.iter().map(|&i| yin_frame[i]).collect();
-            let trough_thresholds =
-                Array::from_shape_fn((idxs_trough.len(), thresholds.len() - 1), |(i, j)| {
-                    yin_frame[idxs_trough[i]] < thresholds[j + 1]
-                });
-
-            // 4. Define the prior over the troughs.
-            // Smaller periods are weighted more.
-            let mut trough_positions =
-                Array::from_shape_fn(trough_thresholds.raw_dim(), |(i, j)| {
-                    trough_thresholds[[i, j]] as isize
-                });
-            trough_positions.accumulate_axis_inplace(Axis(0), |&prev, curr| *curr += prev);
-            trough_positions -= 1;
-            let n_troughs: Array1<_> = trough_thresholds
-                .axis_iter(Axis(1))
-                .map(|x| x.iter().filter(|v| **v).count())
-                .collect();
-            let trough_prior = Array::from_shape_fn(trough_positions.raw_dim(), |(i, j)| {
-                if trough_thresholds[[i, j]] {
-                    A::from(boltzmann_pmf(
-                        trough_positions[[i, j]],
-                        self.boltzmann_parameter,
-                        n_troughs[j],
+        Zip::from(yin_frames.axis_iter(Axis(1)))
+            .and(yin_probs.axis_iter_mut(Axis(1)))
+            .for_each(|yin_frame, mut yin_prob| {
+                // 2. For each frame find the troughs.
+                let idxs_trough: Array1<_> = iter::once(yin_frame[0] < yin_frame[1])
+                    .chain(
+                        yin_frame
+                            .windows(3)
+                            .into_iter()
+                            .map(|x| x[1] < x[0] && x[1] <= x[2]),
+                    )
+                    .chain(iter::once(
+                        yin_frame[yin_frame.len() - 1] < yin_frame[yin_frame.len() - 2],
                     ))
-                    .unwrap()
-                } else {
-                    A::zero()
+                    .enumerate()
+                    .filter_map(|(i, x)| if x { Some(i) } else { None })
+                    .collect();
+
+                if idxs_trough.is_empty() {
+                    return;
+                }
+
+                // 3. Find the troughs below each threshold.
+                // let trough_heights: Array1<_> = trough_index.iter().map(|&i| yin_frame[i]).collect();
+                let trough_thresholds =
+                    Array::from_shape_fn((idxs_trough.len(), thresholds.len() - 1), |(i, j)| {
+                        yin_frame[idxs_trough[i]] < thresholds[j + 1]
+                    });
+
+                // 4. Define the prior over the troughs.
+                // Smaller periods are weighted more.
+                let mut trough_positions =
+                    Array::from_shape_fn(trough_thresholds.raw_dim(), |(i, j)| {
+                        trough_thresholds[[i, j]] as isize
+                    });
+                trough_positions.accumulate_axis_inplace(Axis(0), |&prev, curr| *curr += prev);
+                trough_positions -= 1;
+                let n_troughs: Array1<_> = trough_thresholds
+                    .axis_iter(Axis(1))
+                    .map(|x| x.iter().filter(|v| **v).count())
+                    .collect();
+                let trough_prior = Array::from_shape_fn(trough_positions.raw_dim(), |(i, j)| {
+                    if trough_thresholds[[i, j]] {
+                        A::from(boltzmann_pmf(
+                            trough_positions[[i, j]],
+                            self.boltzmann_parameter,
+                            n_troughs[j],
+                        ))
+                        .unwrap()
+                    } else {
+                        A::zero()
+                    }
+                });
+
+                // 5. For each threshold add probability to global minimum if no trough is below threshold,
+                // else add probability to each trough below threshold biased by prior.
+                let mut probs = (trough_prior * &beta_probs).sum_axis(Axis(1));
+                let global_min = idxs_trough.mapv(|i| yin_frame[i]).argmin_skipnan().unwrap();
+                let n_thresholds_below_min = trough_thresholds
+                    .slice(s![global_min, ..])
+                    .iter()
+                    .filter(|&&x| !x)
+                    .count();
+                probs[global_min] +=
+                    self.no_trough_prob * beta_probs.slice(s![..n_thresholds_below_min]).sum();
+
+                for (i_probs, i_trough) in idxs_trough.into_iter().enumerate() {
+                    yin_prob[i_trough] = probs[i_probs];
                 }
             });
-
-            // 5. For each threshold add probability to global minimum if no trough is below threshold,
-            // else add probability to each trough below threshold biased by prior.
-            let mut probs = (trough_prior * &beta_probs).sum_axis(Axis(1));
-            let global_min = idxs_trough
-                .iter()
-                .map(|&i| yin_frame[i])
-                .collect::<Array1<_>>()
-                .argmin_skipnan()
-                .unwrap();
-            let n_thresholds_below_min = trough_thresholds
-                .slice(s![global_min, ..])
-                .iter()
-                .filter(|&&x| !x)
-                .count();
-            probs[global_min] +=
-                self.no_trough_prob * beta_probs.slice(s![..n_thresholds_below_min]).sum();
-
-            for (i_probs, i_trough) in idxs_trough.into_iter().enumerate() {
-                yin_probs[[i_trough, i_frame]] = probs[i_probs];
-            }
-        }
         let (yin_period, frame_index): (Vec<_>, Vec<_>) = yin_probs
             .indexed_iter()
             .filter_map(|((i, j), v)| if v.is_zero() { None } else { Some((i, j)) })
@@ -251,14 +248,13 @@ where
         let frame_index = Array::from(frame_index);
 
         // Refine peak by parabolic interpolation.
-        let f0_candidates: Array1<_> = yin_period
-            .iter()
-            .zip(frame_index.iter())
-            .map(|(&i, &j)| {
-                A::from(self.sr).unwrap()
-                    / (A::from(i + self.min_period).unwrap() + parabolic_shifts[[i, j]])
-            })
-            .collect();
+        let f0_candidates: Array1<_> =
+            Zip::from(&yin_period)
+                .and(&frame_index)
+                .map_collect(|&i, &j| {
+                    A::from(self.sr).unwrap()
+                        / (A::from(i + self.min_period).unwrap() + parabolic_shifts[[i, j]])
+                });
 
         let n_pitch_bins = (12.0 * self.n_bins_per_semitone as f64 * (self.fmax / self.fmin).log2())
             .floor() as usize
@@ -316,7 +312,7 @@ where
             .sum_axis(Axis(0));
         voiced_prob.mapv_inplace(|x| x.max(A::zero()).min(A::one()));
         observation_probs.slice_mut(s![n_pitch_bins.., ..]).assign(
-            &(&(voiced_prob.clone().neg() + A::one()).slice(s![NewAxis, ..])
+            &((-voiced_prob.slice(s![NewAxis, ..]).to_owned() + A::one())
                 / A::from(n_pitch_bins).unwrap()),
         );
 
@@ -340,16 +336,13 @@ where
                 * (x / A::from(12 * self.n_bins_per_semitone).unwrap()).exp2()
         });
 
-        let mut f0: Array1<A> = (&states % n_pitch_bins)
-            .into_iter()
-            .map(|x| freqs[x])
-            .collect();
-        let voiced_flag: Array1<bool> = states.iter().map(|&x| x < n_pitch_bins).collect();
-        for (i, flag) in voiced_flag.iter().enumerate() {
+        let mut f0: Array1<A> = (&states % n_pitch_bins).mapv(|x| freqs[x]);
+        let voiced_flag: Array1<bool> = states.mapv(|x| x < n_pitch_bins);
+        azip!((x in &mut f0, &flag in &voiced_flag) {
             if !flag {
-                f0[i] = fill_unvoiced;
+                *x = fill_unvoiced;
             }
-        }
+        });
         (f0, voiced_flag, voiced_prob)
     }
 
@@ -368,10 +361,9 @@ where
 
         // Autocorrelation
         let mut acf_frames = Array2::<A>::uninit((n_frames, self.frame_length - self.win_length));
-        wav_frames
-            .axis_iter(Axis(0))
-            .zip(acf_frames.axis_iter_mut(Axis(0)))
-            .for_each(|(wav_frame, mut acf_frame)| {
+        Zip::from(wav_frames.axis_iter(Axis(0)))
+            .and(acf_frames.axis_iter_mut(Axis(0)))
+            .for_each(|wav_frame, mut acf_frame| {
                 let mut wav_frame = wav_frame.to_owned();
 
                 let mut wav_frame_rev = wav_frame.slice(s![..self.win_length+1;-1]).pad(
@@ -426,11 +418,13 @@ where
         energy_frames.accumulate_axis_inplace(Axis(1), |&prev, curr| *curr += prev);
         let mut energy_frames = &energy_frames.slice(s![.., self.win_length..])
             - &energy_frames.slice(s![.., ..-(self.win_length as isize)]);
-        for x in energy_frames.iter_mut() {
-            if x.abs() < A::from(1e-6).unwrap() {
-                *x = A::zero();
+        energy_frames.mapv_inplace(|x| {
+            if x.abs() >= A::from(1e-6).unwrap() {
+                x
+            } else {
+                A::zero()
             }
-        }
+        });
 
         // Difference function
         let mut yin_frames = &energy_frames.slice(s![.., 0..1]) + &energy_frames

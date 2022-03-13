@@ -84,7 +84,7 @@ fn main() {
         ))) as Box<dyn io::Write>
     });
 
-    let wav: Array1<f64> = wav.into_iter().map(|x| x as f64).collect();
+    let wav: Array1<f64> = wav.slice(s![0, ..]).mapv(|x| x as f64);
     let wav = CowArray::from(wav);
     let ms_to_samples = |ms: f64| (sr as f64 * ms / 1000.).round() as usize;
     let frame_length = ms_to_samples(cli.frame_ms);
