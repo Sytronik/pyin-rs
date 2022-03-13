@@ -6,6 +6,7 @@ name = "pyin"
 version = "0.1.0"
 
 [lib]
+crate-type = ["rlib", "cdylib"]
 name = "pyin"
 path = "src/lib.rs"
 
@@ -27,6 +28,7 @@ rayon = "1.5.1"
 realfft = "3.0.0"
 rustfft = "6.0.1"
 statrs = "0.15.0"
+libc = "0.2.119"
 
 [dependencies.rodio]
 git = "https://github.com/Sytronik/rodio.git"
