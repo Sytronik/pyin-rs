@@ -97,12 +97,15 @@ where
         hop_length: Option<usize>,
         resolution: Option<f64>,
     ) -> Self {
-        assert!(fmin > 0.);
-        assert!(fmax <= (sr as f64) / 2.);
+        assert!(0. < fmin && fmin < fmax && fmax <= (sr as f64) / 2.);
+        assert!(sr > 0);
+        assert!(frame_length > 0);
         let win_length = win_length.unwrap_or(frame_length / 2);
-        assert!(win_length <= frame_length);
+        assert!(0 < win_length && win_length <= frame_length);
         let hop_length = hop_length.unwrap_or(frame_length / 4);
+        assert!(hop_length > 0);
         let resolution = resolution.unwrap_or(0.1);
+        assert!(0. < resolution && resolution < 1.);
         let n_bins_per_semitone = (1.0 / resolution).ceil() as usize;
 
         let min_period = ((sr as f64 / fmax).floor() as usize).max(1);
