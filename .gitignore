@@ -1,8 +1,11 @@
+.DS_Store
+
 Cargo.lock
-/target
 
 /.vscode
 
-.DS_Store
+/target
+test_pyin
+
 *.npy
 *.wav
