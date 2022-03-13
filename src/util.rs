@@ -20,11 +20,7 @@ pub(crate) fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
         (&frames.slice(s![2.., ..]) - &frames.slice(s![..-2, ..])) / A::from(2.0).unwrap();
     let mut parabolic_shifts =
         &parabola_b.neg() / (&parabola_a * A::from(2.0).unwrap() + A::min_positive_value());
-    for x in parabolic_shifts.iter_mut() {
-        if x.abs() > A::one() {
-            *x = A::zero();
-        }
-    }
+    parabolic_shifts.mapv_inplace(|x| if x.abs() <= A::one() { x } else { A::zero() });
     parabolic_shifts.pad((1, 1), Axis(0), PadMode::Constant(A::zero()))
 }
 

@@ -69,13 +69,7 @@ pub(crate) fn viterbi<A>(
     p_init: Option<CowArray<A, Ix1>>,
 ) -> (Array1<usize>, A)
 where
-    A: Float + AbsDiffEq<Epsilon = A> + Add + MaybeNan + Debug, // + FloatConst
-    // + Sub
-    // + Mul
-    // + MulAssign
-    // + DivAssign
-    // + NumAssign
-    // + ScalarOperand
+    A: Float + AbsDiffEq<Epsilon = A> + Add + MaybeNan + Debug,
     <A as MaybeNan>::NotNan: Ord,
 {
     assert_eq!(prob.raw_dim()[0], transition.raw_dim()[0]);
