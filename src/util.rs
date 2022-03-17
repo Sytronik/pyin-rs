@@ -13,6 +13,7 @@ pub(crate) fn parabolic_interpolation<A: Float + Add + Mul + ScalarOperand>(
     frames: ArrayView2<A>,
 ) -> Array2<A> {
     assert!(frames.shape()[0] > 2);
+    #[allow(clippy::reversed_empty_ranges)]
     let parabola_a = (&frames.slice(s![..-2, ..]) + &frames.slice(s![2.., ..])
         - &frames.slice(s![1..-1, ..]) * A::from(2.0).unwrap())
         / A::from(2.0).unwrap();

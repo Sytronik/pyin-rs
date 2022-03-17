@@ -67,18 +67,18 @@ fn main() {
         // let mut input = std::io::stdin();
         unimplemented!()
     } else {
-        let file =
-            File::open(&cli.input).expect(&format!("Inpuf file \"{}\" not found!", &cli.input));
+        let file = File::open(&cli.input)
+            .unwrap_or_else(|_| panic!("Inpuf file \"{}\" not found!", &cli.input));
 
         decode_audio_file(file).expect("Failed to decode audio file!")
     };
     let output_writer = io::BufWriter::new(if &cli.output == "-" {
         Box::new(std::io::stdout()) as Box<dyn io::Write>
     } else {
-        Box::new(std::fs::File::create(&cli.output).expect(&format!(
-            "Could not create output file \"{}\"!",
-            &cli.output
-        ))) as Box<dyn io::Write>
+        Box::new(
+            std::fs::File::create(&cli.output)
+                .unwrap_or_else(|_| panic!("Could not create output file \"{}\"!", &cli.output)),
+        ) as Box<dyn io::Write>
     });
 
     let wav: Array2<f64> = wav.mapv(|x| x as f64);

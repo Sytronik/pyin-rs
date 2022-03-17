@@ -14,24 +14,31 @@ use ndarray::prelude::*;
 use pad::PadMode;
 pub use pyin::PYinExecutor;
 
+/// # Safety
+///
+/// The caller must call free on f0, voiced_flag, voiced_prob to
+/// prevent a memory leak.
 #[no_mangle]
 pub unsafe extern "C" fn pyin(
+    // outputs
     f0: *mut *mut c_double,
     voiced_flag: *mut *mut bool,
     voiced_prob: *mut *mut c_double,
     n_frames: *mut c_uint,
+
+    // inputs
     input: *const c_double,
     length: c_uint,
     sr: c_uint,
     fmin: c_double,
     fmax: c_double,
     frame_length: c_uint,
-    win_length: c_uint,
-    hop_length: c_uint,
-    resolution: c_double,
+    win_length: c_uint,   // If 0, use default value (frame_length / 2)
+    hop_length: c_uint,   // If 0, use default value (frame_length / 4)
+    resolution: c_double, // 0 < resolution < 1. If <= 0, use default value (0.1)
     fill_unvoiced: c_double,
     center: bool,
-    pad_mode: c_uint,
+    pad_mode: c_uint, // 0: zero padding, 1: reflect padding
 ) -> isize {
     if f0.is_null()
         || !(*f0).is_null()
