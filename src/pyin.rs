@@ -22,7 +22,7 @@ use crate::util::*;
 use crate::viterbi::viterbi;
 use crate::windows::WindowType;
 
-#[derive(Getters, Setters, CopyGetters)]
+#[derive(Getters, Setters, CopyGetters, Clone)]
 pub struct PYinExecutor<A>
 where
     A: Float

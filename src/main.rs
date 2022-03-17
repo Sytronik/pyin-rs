@@ -2,9 +2,9 @@ use std::fs::File;
 use std::io;
 
 use clap::Parser;
-use ndarray::prelude::*;
-use ndarray::{stack, CowArray};
+use ndarray::{prelude::*, CowArray};
 use ndarray_npy::WriteNpyExt;
+use rayon::prelude::*;
 use rodio::decoder::DecoderError;
 use rodio::{Decoder, Source};
 
@@ -72,9 +72,6 @@ fn main() {
 
         decode_audio_file(file).expect("Failed to decode audio file!")
     };
-    if wav.shape()[0] != 1 {
-        unimplemented!("Only mono files are supported!");
-    }
     let output_writer = io::BufWriter::new(if &cli.output == "-" {
         Box::new(std::io::stdout()) as Box<dyn io::Write>
     } else {
@@ -84,13 +81,12 @@ fn main() {
         ))) as Box<dyn io::Write>
     });
 
-    let wav: Array1<f64> = wav.slice(s![0, ..]).mapv(|x| x as f64);
-    let wav = CowArray::from(wav);
+    let wav: Array2<f64> = wav.mapv(|x| x as f64);
     let ms_to_samples = |ms: f64| (sr as f64 * ms / 1000.).round() as usize;
     let frame_length = ms_to_samples(cli.frame_ms);
     let win_length = cli.win_ms.map(ms_to_samples);
     let hop_length = cli.hop_ms.map(ms_to_samples);
-    let mut pyin_exec = PYinExecutor::new(
+    let pyin_exec = PYinExecutor::new(
         cli.fmin,
         cli.fmax,
         sr,
@@ -99,16 +95,31 @@ fn main() {
         hop_length,
         cli.resolution,
     );
-    let (f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, f64::NAN, true, PadMode::Reflect);
+    let results: Vec<_> = wav
+        .axis_iter(Axis(0))
+        .par_bridge()
+        .map(|mono| {
+            pyin_exec
+                .clone()
+                .pyin(CowArray::from(mono), f64::NAN, true, PadMode::Reflect)
+        })
+        .collect();
+    let pyin_result =
+        Array3::from_shape_fn(
+            (3, results.len(), results[0].0.len()),
+            |(i, j, k)| match i {
+                0 => results[j].0[k],
+                1 => results[j].1[k] as usize as f64,
+                2 => results[j].2[k],
+                _ => unreachable!(),
+            },
+        );
 
     if cli.verbose && &cli.output != "-" {
-        println!("f0 = {}", f0);
-        println!("voiced_flag = {}", voiced_flag);
-        println!("voiced_prob = {}", voiced_prob);
+        println!("f0 = {}", pyin_result.index_axis(Axis(0), 0));
+        println!("voiced_flag = {}", pyin_result.index_axis(Axis(0), 1));
+        println!("voiced_prob = {}", pyin_result.index_axis(Axis(0), 2));
     }
-    let voiced_flag_f64 =
-        Array1::<f64>::from_shape_fn(voiced_flag.raw_dim(), |i| voiced_flag[i] as usize as f64);
-    let pyin_result = stack![Axis(0), f0, voiced_flag_f64, voiced_prob];
     pyin_result
         .write_npy(output_writer)
         .expect("Failed to write pyin result to file!");
