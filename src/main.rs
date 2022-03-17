@@ -101,7 +101,7 @@ fn main() {
         .map(|mono| {
             pyin_exec
                 .clone()
-                .pyin(CowArray::from(mono), f64::NAN, true, PadMode::Reflect)
+                .pyin(CowArray::from(mono), f64::NAN, true, PadMode::Constant(0.))
         })
         .collect();
     let pyin_result =

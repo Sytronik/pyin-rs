@@ -1,6 +1,6 @@
 # pYin algorithm written in Rust
 
-The implementation is based on [librosa](https://librosa.org/doc/0.8.1/_modules/librosa/core/pitch.html#pyin).
+The implementation is based on [librosa](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
 
 ## Build & Run
 

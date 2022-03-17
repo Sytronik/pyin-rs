@@ -1,4 +1,4 @@
-//! Reference: https://librosa.org/doc/0.8.1/_modules/librosa/core/pitch.html#pyin
+//! Reference: https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin
 
 use std::cmp::Ord;
 use std::iter;
@@ -366,8 +366,8 @@ where
             .for_each(|wav_frame, mut acf_frame| {
                 let mut wav_frame = wav_frame.to_owned();
 
-                let mut wav_frame_rev = wav_frame.slice(s![..self.win_length+1;-1]).pad(
-                    (0, self.frame_length - (self.win_length + 1)),
+                let mut wav_frame_rev = wav_frame.slice(s![1..self.win_length+1;-1]).pad(
+                    (0, self.frame_length - self.win_length),
                     Axis(0),
                     PadMode::Constant(A::zero()),
                 );
