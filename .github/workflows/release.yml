@@ -1,0 +1,60 @@
+name: Production Builds
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+jobs:
+  build:
+    name: "Build"
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install libasound2-dev
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt install -y libasound2-dev
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: Zip binary
+        if: matrix.os != 'windows-latest'
+        run: zip "pyin-${{ matrix.os }}.zip" target/release/pyin
+
+      - if: matrix.os != 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: pyin-${{ matrix.os }}
+          path: pyin-${{ matrix.os }}.zip
+          retention-days: 1
+
+      - if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: pyin-${{ matrix.os }}
+          path: target/release/pyin.exe
+          retention-days: 1
+
+  release:
+    name: "Release"
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v2
+      - name: Display fetched artifacts
+        run: ls -R
+      - name: Emit a Github Release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          title: "First Release"
+          files: |
+            pyin-windows-latest/pyin.exe
+            pyin-macos-latest/pyin-macos-latest.zip
+            pyin-ubuntu-latest/pyin-ubuntu-latest.zip

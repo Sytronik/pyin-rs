@@ -1,9 +1,10 @@
 [package]
 authors = ["Sytronik <sytronik210@gmail.com>"]
+description = "pYIN pitch detection algorithm written in Rust"
 edition = "2021"
 license = "MIT"
 name = "pyin"
-version = "0.1.0"
+version = "1.0.0"
 
 [lib]
 crate-type = ["rlib", "cdylib"]
