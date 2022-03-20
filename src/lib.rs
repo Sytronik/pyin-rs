@@ -13,6 +13,8 @@ use libc::{self, c_double, c_uint, c_void};
 pub use pad::PadMode;
 pub use pyin::PYINExecutor;
 
+/// C lang FFI for pYIN (Single-channel only)
+///
 /// # Safety
 ///
 /// The caller must call free on f0, voiced_flag, voiced_prob to
