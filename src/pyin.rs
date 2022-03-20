@@ -104,6 +104,9 @@ where
 
         let min_period = ((sr as f64 / fmax).floor() as usize).max(1);
         let max_period = ((sr as f64 / fmin).ceil() as usize).min(frame_length - win_length - 1);
+        if min_period > max_period {
+            panic!("max(sr / (frame_length - win_length - 2), fmin) < fmax should be satisfied!");
+        }
 
         let mut fft_planner = RealFftPlanner::<A>::new();
         let fft_module = fft_planner.plan_fft_forward(frame_length);
@@ -148,6 +151,15 @@ where
             )
             .into()
         } else {
+            if wav.len() < self.frame_length {
+                panic!(
+                    "Input wav is too short!\n
+                     wav length: {}\n
+                     frame_length: {}",
+                    wav.len(),
+                    self.frame_length
+                );
+            }
             wav
         };
 
