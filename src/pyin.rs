@@ -52,16 +52,22 @@ where
     fft_scratch: Vec<Complex<A>>,
     ifft_scratch: Vec<Complex<A>>,
     n_bins_per_semitone: usize,
-    #[getset(get_copy = "pub", set = "pub")]
+    #[getset(get_copy = "pub")]
+    n_pitch_bins: usize,
+    #[getset(get_copy = "pub")]
     n_thresholds: usize,
-    #[getset(get_copy = "pub", set = "pub")]
+    #[getset(get_copy = "pub")]
     beta_parameters: (f64, f64),
+    #[getset(get = "pub")]
+    beta_probs: Array1<A>,
     #[getset(get_copy = "pub", set = "pub")]
     boltzmann_parameter: f64,
-    #[getset(get_copy = "pub", set = "pub")]
+    #[getset(get_copy = "pub")]
     max_transition_rate: f64,
-    #[getset(get_copy = "pub", set = "pub")]
+    #[getset(get_copy = "pub")]
     switch_prob: A,
+    #[getset(get = "pub")]
+    transition: Array2<A>,
     #[getset(get_copy = "pub", set = "pub")]
     no_trough_prob: A,
 }
@@ -104,9 +110,58 @@ where
 
         let min_period = ((sr as f64 / fmax).floor() as usize).max(1);
         let max_period = ((sr as f64 / fmin).ceil() as usize).min(frame_length - win_length - 1);
-        if min_period > max_period {
-            panic!("max(sr / (frame_length - win_length - 2), fmin) < fmax should be satisfied!");
-        }
+
+        let n_pitch_bins =
+            (12.0 * n_bins_per_semitone as f64 * (fmax / fmin).log2()).floor() as usize + 1;
+
+        let n_thresholds = 100;
+        let beta_parameters = (2.0, 18.0);
+        let beta_dist = Beta::new(beta_parameters.0, beta_parameters.1).unwrap();
+        let beta_cdf: Array1<f64> = (0..(n_thresholds + 1))
+            .map(|i| beta_dist.cdf(i as f64 / n_thresholds as f64))
+            .collect();
+        let beta_probs: Array1<A> = beta_cdf
+            .windows(2)
+            .into_iter()
+            .map(|x| A::from(x[1] - x[0]).unwrap())
+            .collect();
+
+        // Construct transition matrix.
+        // Construct the within voicing transition probabilities
+        let max_transition_rate = 35.92;
+        let switch_prob = A::from(0.01).unwrap();
+        let max_semitones_per_frame =
+            (max_transition_rate * 12.0 * hop_length as f64 / sr as f64).round() as usize;
+        let transition_width = max_semitones_per_frame * n_bins_per_semitone + 1;
+        let transition =
+            transition_local::<A>(n_pitch_bins, transition_width, WindowType::Triangle, false);
+        // Include across voicing transition probabilities
+        /* transition = np.block(
+            [
+                [(1 - switch_prob) * self.transition, switch_prob * self.transition],
+                [switch_prob * self.transition, (1 - switch_prob) * self.transition],
+            ]
+        ) */
+        let transition =
+            Array2::<A>::build_uninit((n_pitch_bins * 2, n_pitch_bins * 2), |mut arr| {
+                (&transition * (A::one() - switch_prob))
+                    .move_into_uninit(arr.slice_mut(s![..n_pitch_bins, ..n_pitch_bins]));
+                (&transition * switch_prob).move_into_uninit(
+                    arr.slice_mut(s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins]),
+                );
+                let (block00, block01, mut block10, mut block11) = arr.multi_slice_mut((
+                    s![..n_pitch_bins, ..n_pitch_bins],
+                    s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins],
+                    s![n_pitch_bins..2 * n_pitch_bins, ..n_pitch_bins],
+                    s![
+                        n_pitch_bins..2 * n_pitch_bins,
+                        n_pitch_bins..2 * n_pitch_bins
+                    ],
+                ));
+                block11.assign(&block00);
+                block10.assign(&block01);
+            });
+        let transition = unsafe { transition.assume_init() };
 
         let mut fft_planner = RealFftPlanner::<A>::new();
         let fft_module = fft_planner.plan_fft_forward(frame_length);
@@ -127,11 +182,14 @@ where
             fft_scratch,
             ifft_scratch,
             n_bins_per_semitone,
-            n_thresholds: 100,
-            beta_parameters: (2.0, 18.0),
+            n_pitch_bins,
+            n_thresholds,
+            beta_parameters,
+            beta_probs,
             boltzmann_parameter: 2.0,
-            max_transition_rate: 35.92,
-            switch_prob: A::from(0.01).unwrap(),
+            max_transition_rate,
+            switch_prob,
+            transition,
             no_trough_prob: A::from(0.01).unwrap(),
         }
     }
@@ -171,15 +229,6 @@ where
         // differs from the method described in the paper.
         // 1. Define the prior over the thresholds.
         let thresholds = Array1::linspace(A::zero(), A::one(), self.n_thresholds + 1);
-        let beta_dist = Beta::new(self.beta_parameters.0, self.beta_parameters.1).unwrap();
-        let beta_cdf: Array1<f64> = (0..(self.n_thresholds + 1))
-            .map(|i| beta_dist.cdf(i as f64 / self.n_thresholds as f64))
-            .collect();
-        let beta_probs: Array1<A> = beta_cdf
-            .windows(2)
-            .into_iter()
-            .map(|x| A::from(x[1] - x[0]).unwrap())
-            .collect();
 
         let mut yin_probs = Array2::<A>::zeros(yin_frames.raw_dim());
         Zip::from(yin_frames.axis_iter(Axis(1)))
@@ -238,7 +287,7 @@ where
 
                 // 5. For each threshold add probability to global minimum if no trough is below threshold,
                 // else add probability to each trough below threshold biased by prior.
-                let mut probs = (trough_prior * &beta_probs).sum_axis(Axis(1));
+                let mut probs = (trough_prior * &self.beta_probs).sum_axis(Axis(1));
                 let global_min = idxs_trough.mapv(|i| yin_frame[i]).argmin_skipnan().unwrap();
                 let n_thresholds_below_min = trough_thresholds
                     .slice(s![global_min, ..])
@@ -246,7 +295,7 @@ where
                     .filter(|&&x| !x)
                     .count();
                 probs[global_min] +=
-                    self.no_trough_prob * beta_probs.slice(s![..n_thresholds_below_min]).sum();
+                    self.no_trough_prob * self.beta_probs.slice(s![..n_thresholds_below_min]).sum();
 
                 for (i_probs, i_trough) in idxs_trough.into_iter().enumerate() {
                     yin_prob[i_trough] = probs[i_probs];
@@ -268,88 +317,52 @@ where
                         / (A::from(i + self.min_period).unwrap() + parabolic_shifts[[i, j]])
                 });
 
-        let n_pitch_bins = (12.0 * self.n_bins_per_semitone as f64 * (self.fmax / self.fmin).log2())
-            .floor() as usize
-            + 1;
-
-        // Construct transition matrix.
-        let max_semitones_per_frame = (self.max_transition_rate * 12.0 * self.hop_length as f64
-            / self.sr as f64)
-            .round() as usize;
-        let transition_width = max_semitones_per_frame * self.n_bins_per_semitone + 1;
-        // Construct the within voicing transition probabilities
-        let transition =
-            transition_local::<A>(n_pitch_bins, transition_width, WindowType::Triangle, false);
-        // Include across voicing transition probabilities
-        /* transition = np.block(
-            [
-                [(1 - switch_prob) * transition, switch_prob * transition],
-                [switch_prob * transition, (1 - switch_prob) * transition],
-            ]
-        ) */
-        let transition =
-            Array2::<A>::build_uninit((n_pitch_bins * 2, n_pitch_bins * 2), |mut arr| {
-                (&transition * (A::one() - self.switch_prob))
-                    .move_into_uninit(arr.slice_mut(s![..n_pitch_bins, ..n_pitch_bins]));
-                (&transition * self.switch_prob).move_into_uninit(
-                    arr.slice_mut(s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins]),
-                );
-                let (block00, block01, mut block10, mut block11) = arr.multi_slice_mut((
-                    s![..n_pitch_bins, ..n_pitch_bins],
-                    s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins],
-                    s![n_pitch_bins..2 * n_pitch_bins, ..n_pitch_bins],
-                    s![
-                        n_pitch_bins..2 * n_pitch_bins,
-                        n_pitch_bins..2 * n_pitch_bins
-                    ],
-                ));
-                block11.assign(&block00);
-                block10.assign(&block01);
-            });
-        let transition = unsafe { transition.assume_init() };
-
         // Find pitch bin corresponding to each f0 candidate.
         let bin_index = f0_candidates.mapv(|x| (x / A::from(self.fmin).unwrap()).log2())
             * A::from(12 * self.n_bins_per_semitone).unwrap();
-        let bin_index = bin_index.mapv(|x| x.round().to_usize().unwrap().clamp(0, n_pitch_bins));
+        let bin_index =
+            bin_index.mapv(|x| x.round().to_usize().unwrap().clamp(0, self.n_pitch_bins));
 
         // Observation probabilities.
-        let mut observation_probs = Array2::<A>::zeros((2 * n_pitch_bins, yin_frames.shape()[1]));
+        let mut observation_probs =
+            Array2::<A>::zeros((2 * self.n_pitch_bins, yin_frames.shape()[1]));
         for i in 0..bin_index.shape()[0] {
             observation_probs[[bin_index[i], frame_index[i]]] =
                 yin_probs[[yin_period[i], frame_index[i]]];
         }
         let mut voiced_prob = observation_probs
-            .slice(s![..n_pitch_bins, ..])
+            .slice(s![..self.n_pitch_bins, ..])
             .sum_axis(Axis(0));
         voiced_prob.mapv_inplace(|x| x.max(A::zero()).min(A::one()));
-        observation_probs.slice_mut(s![n_pitch_bins.., ..]).assign(
-            &((-voiced_prob.slice(s![NewAxis, ..]).to_owned() + A::one())
-                / A::from(n_pitch_bins).unwrap()),
-        );
+        observation_probs
+            .slice_mut(s![self.n_pitch_bins.., ..])
+            .assign(
+                &((-voiced_prob.slice(s![NewAxis, ..]).to_owned() + A::one())
+                    / A::from(self.n_pitch_bins).unwrap()),
+            );
 
-        let mut p_init = Array1::<A>::zeros(2 * n_pitch_bins);
+        let mut p_init = Array1::<A>::zeros(2 * self.n_pitch_bins);
         p_init
-            .slice_mut(s![n_pitch_bins..])
-            .mapv_inplace(|_| A::one() / A::from(n_pitch_bins).unwrap());
+            .slice_mut(s![self.n_pitch_bins..])
+            .mapv_inplace(|_| A::one() / A::from(self.n_pitch_bins).unwrap());
 
         // Viterbi decoding.
         let (states, _) = viterbi(
             observation_probs.view(),
-            transition.view(),
+            self.transition.view(),
             Some(CowArray::from(p_init)),
         );
 
         // Find f0 corresponding to each decoded pitch bin.
-        let mut freqs = Array1::range(A::zero(), A::from(n_pitch_bins).unwrap(), A::one());
+        let mut freqs = Array1::range(A::zero(), A::from(self.n_pitch_bins).unwrap(), A::one());
 
         freqs.mapv_inplace(|x| {
             A::from(self.fmin).unwrap()
                 * (x / A::from(12 * self.n_bins_per_semitone).unwrap()).exp2()
         });
 
-        let mut f0: Array1<A> = (&states % n_pitch_bins).mapv(|x| freqs[x]);
-        let voiced_flag: Array1<bool> = states.mapv(|x| x < n_pitch_bins);
+        let mut f0: Array1<A> = (&states % self.n_pitch_bins).mapv(|x| freqs[x]);
+        let voiced_flag: Array1<bool> = states.mapv(|x| x < self.n_pitch_bins);
         azip!((x in &mut f0, &flag in &voiced_flag) {
             if !flag {
                 *x = fill_unvoiced;
