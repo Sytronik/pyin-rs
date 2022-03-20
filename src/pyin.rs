@@ -39,8 +39,8 @@ where
         + AbsDiffEq<Epsilon = A>,
     <A as MaybeNan>::NotNan: Ord,
 {
-    fmin: f64,
-    fmax: f64,
+    fmin: A,
+    fmax: A,
     sr: u32,
     frame_length: usize,
     win_length: usize,
@@ -189,8 +189,8 @@ where
         let fft_scratch = fft_module.make_scratch_vec();
         let ifft_scratch = ifft_module.make_scratch_vec();
         PYinExecutor {
-            fmin,
-            fmax,
+            fmin: A::from(fmin).unwrap(),
+            fmax: A::from(fmax).unwrap(),
             sr,
             frame_length,
             win_length,
@@ -338,7 +338,7 @@ where
                 });
 
         // Find pitch bin corresponding to each f0 candidate.
-        let bin_index = f0_candidates.mapv(|x| (x / A::from(self.fmin).unwrap()).log2())
+        let bin_index = f0_candidates.mapv(|x| (x / self.fmin).log2())
             * A::from(12 * self.n_bins_per_semitone).unwrap();
         let bin_index =
             bin_index.mapv(|x| x.round().to_usize().unwrap().clamp(0, self.n_pitch_bins));
@@ -377,8 +377,7 @@ where
         let mut freqs = Array1::range(A::zero(), A::from(self.n_pitch_bins).unwrap(), A::one());
 
         freqs.mapv_inplace(|x| {
-            A::from(self.fmin).unwrap()
-                * (x / A::from(12 * self.n_bins_per_semitone).unwrap()).exp2()
+            self.fmin * (x / A::from(12 * self.n_bins_per_semitone).unwrap()).exp2()
         });
 
         let mut f0: Array1<A> = (&states % self.n_pitch_bins).mapv(|x| freqs[x]);
