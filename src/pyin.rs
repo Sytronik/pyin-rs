@@ -110,9 +110,20 @@ where
 
         let min_period = ((sr as f64 / fmax).floor() as usize).max(1);
         let max_period = ((sr as f64 / fmin).ceil() as usize).min(frame_length - win_length - 1);
+        if max_period - min_period < 2 {
+            panic!("min(ceil(sr / fmin), (frame_length - win_length - 1)) + 2 < floor(sr / fmax) should be satisfied!");
+        }
 
         let n_pitch_bins =
             (12.0 * n_bins_per_semitone as f64 * (fmax / fmin).log2()).floor() as usize + 1;
+        if n_pitch_bins < 2 {
+            panic!(
+                "The number of possible pitch value is 1!\n
+                  Possible reasons:\n
+                  1. fmin and fmax is too close.\n
+                  2. resolution is too high."
+            );
+        }
 
         let n_thresholds = 100;
         let beta_parameters = (2.0, 18.0);
@@ -133,6 +144,15 @@ where
         let max_semitones_per_frame =
             (max_transition_rate * 12.0 * hop_length as f64 / sr as f64).round() as usize;
         let transition_width = max_semitones_per_frame * n_bins_per_semitone + 1;
+        if n_pitch_bins < transition_width {
+            panic!(
+                "Cannot calculate transition matrix!\n
+                  Possible reasons:\n
+                  1. fmin and fmax is too close.\n
+                  2. resolution is too high.\n
+                  3. hop_length is too short."
+            );
+        }
         let transition =
             transition_local::<A>(n_pitch_bins, transition_width, WindowType::Triangle, false);
         // Include across voicing transition probabilities
