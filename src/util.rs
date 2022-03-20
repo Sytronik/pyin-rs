@@ -44,7 +44,7 @@ where
     assert!(width < n_states);
     let range: Array1<_> = (0..n_states).collect();
     let width_arr = Array1::from_elem(n_states, width);
-    let mut transition = Array2::<A>::zeros((n_states, n_states));
+    let mut transition = Array2::zeros((n_states, n_states));
     Zip::from(&range)
         .and(&width_arr)
         .and(transition.axis_iter_mut(Axis(0)))

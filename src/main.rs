@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io;
 
 use clap::Parser;
-use ndarray::{prelude::*, CowArray};
+use ndarray::prelude::*;
 use ndarray_npy::WriteNpyExt;
 use rayon::prelude::*;
 use rodio::decoder::DecoderError;
@@ -50,7 +50,7 @@ fn decode_audio_file(file: File) -> Result<(Array2<f32>, u32), DecoderError> {
     let source = Decoder::new(io::BufReader::new(file))?;
     let sr = source.sample_rate();
     let channels = source.channels() as usize;
-    let mut vec: Vec<f32> = source.collect();
+    let mut vec: Vec<_> = source.collect();
     if vec.len() < channels {
         (vec.len()..channels).into_iter().for_each(|_| vec.push(0.));
     }
@@ -81,7 +81,7 @@ fn main() {
         ) as Box<dyn io::Write>
     });
 
-    let wav: Array2<f64> = wav.mapv(|x| x as f64);
+    let wav = wav.mapv(|x| x as f64);
     let ms_to_samples = |ms: f64| (sr as f64 * ms / 1000.).round() as usize;
     let frame_length = ms_to_samples(cli.frame_ms);
     let win_length = cli.win_ms.map(ms_to_samples);
@@ -101,7 +101,7 @@ fn main() {
         .map(|mono| {
             pyin_exec
                 .clone()
-                .pyin(CowArray::from(mono), f64::NAN, true, PadMode::Constant(0.))
+                .pyin(mono.into(), f64::NAN, true, PadMode::Constant(0.))
         })
         .collect();
     let pyin_result =

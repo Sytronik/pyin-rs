@@ -9,7 +9,6 @@ use std::mem;
 use std::slice;
 
 use libc::{self, c_double, c_uint, c_void};
-use ndarray::prelude::*;
 
 use pad::PadMode;
 pub use pyin::PYinExecutor;
@@ -83,7 +82,7 @@ pub unsafe extern "C" fn pyin(
         1 => PadMode::Reflect,
         _ => return 1,
     };
-    let wav = CowArray::from(slice::from_raw_parts(input, length));
+    let wav = slice::from_raw_parts(input, length).into();
 
     let mut pyin_executor = PYinExecutor::<c_double>::new(
         fmin as f64,

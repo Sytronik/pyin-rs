@@ -131,10 +131,10 @@ where
         let n_thresholds = 100;
         let beta_parameters = (2.0, 18.0);
         let beta_dist = Beta::new(beta_parameters.0, beta_parameters.1).unwrap();
-        let beta_cdf: Array1<f64> = (0..(n_thresholds + 1))
+        let beta_cdf: Array1<_> = (0..(n_thresholds + 1))
             .map(|i| beta_dist.cdf(i as f64 / n_thresholds as f64))
             .collect();
-        let beta_probs: Array1<A> = beta_cdf
+        let beta_probs: Array1<_> = beta_cdf
             .windows(2)
             .into_iter()
             .map(|x| A::from(x[1] - x[0]).unwrap())
@@ -165,28 +165,27 @@ where
                 [switch_prob * self.transition, (1 - switch_prob) * self.transition],
             ]
         ) */
-        let transition =
-            Array2::<A>::build_uninit((n_pitch_bins * 2, n_pitch_bins * 2), |mut arr| {
-                (&transition * (A::one() - switch_prob))
-                    .move_into_uninit(arr.slice_mut(s![..n_pitch_bins, ..n_pitch_bins]));
-                (&transition * switch_prob).move_into_uninit(
-                    arr.slice_mut(s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins]),
-                );
-                let (block00, block01, mut block10, mut block11) = arr.multi_slice_mut((
-                    s![..n_pitch_bins, ..n_pitch_bins],
-                    s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins],
-                    s![n_pitch_bins..2 * n_pitch_bins, ..n_pitch_bins],
-                    s![
-                        n_pitch_bins..2 * n_pitch_bins,
-                        n_pitch_bins..2 * n_pitch_bins
-                    ],
-                ));
-                block11.assign(&block00);
-                block10.assign(&block01);
-            });
+        let transition = Array2::build_uninit((n_pitch_bins * 2, n_pitch_bins * 2), |mut arr| {
+            (&transition * (A::one() - switch_prob))
+                .move_into_uninit(arr.slice_mut(s![..n_pitch_bins, ..n_pitch_bins]));
+            (&transition * switch_prob).move_into_uninit(
+                arr.slice_mut(s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins]),
+            );
+            let (block00, block01, mut block10, mut block11) = arr.multi_slice_mut((
+                s![..n_pitch_bins, ..n_pitch_bins],
+                s![..n_pitch_bins, n_pitch_bins..2 * n_pitch_bins],
+                s![n_pitch_bins..2 * n_pitch_bins, ..n_pitch_bins],
+                s![
+                    n_pitch_bins..2 * n_pitch_bins,
+                    n_pitch_bins..2 * n_pitch_bins
+                ],
+            ));
+            block11.assign(&block00);
+            block10.assign(&block01);
+        });
         let transition = unsafe { transition.assume_init() };
 
-        let mut fft_planner = RealFftPlanner::<A>::new();
+        let mut fft_planner = RealFftPlanner::new();
         let fft_module = fft_planner.plan_fft_forward(frame_length);
         let ifft_module = fft_planner.plan_fft_inverse(frame_length);
 
@@ -232,7 +231,7 @@ where
         center: bool,
         pad_mode: PadMode<A>,
     ) -> (Array1<A>, Array1<bool>, Array1<A>) {
-        let wav: CowArray<_, _> = if center {
+        let wav = if center {
             wav.pad(
                 (self.frame_length / 2, self.frame_length / 2),
                 Axis(0),
@@ -261,7 +260,7 @@ where
         // 1. Define the prior over the thresholds.
         let thresholds = Array1::linspace(A::zero(), A::one(), self.n_thresholds + 1);
 
-        let mut yin_probs = Array2::<A>::zeros(yin_frames.raw_dim());
+        let mut yin_probs = Array2::zeros(yin_frames.raw_dim());
         Zip::from(yin_frames.axis_iter(Axis(1)))
             .and(yin_probs.axis_iter_mut(Axis(1)))
             .for_each(|yin_frame, mut yin_prob| {
@@ -285,7 +284,6 @@ where
                 }
 
                 // 3. Find the troughs below each threshold.
-                // let trough_heights: Array1<_> = trough_index.iter().map(|&i| yin_frame[i]).collect();
                 let trough_thresholds =
                     Array::from_shape_fn((idxs_trough.len(), thresholds.len() - 1), |(i, j)| {
                         yin_frame[idxs_trough[i]] < thresholds[j + 1]
@@ -355,8 +353,7 @@ where
             bin_index.mapv(|x| x.round().to_usize().unwrap().clamp(0, self.n_pitch_bins));
 
         // Observation probabilities.
-        let mut observation_probs =
-            Array2::<A>::zeros((2 * self.n_pitch_bins, yin_frames.shape()[1]));
+        let mut observation_probs = Array2::zeros((2 * self.n_pitch_bins, yin_frames.shape()[1]));
         for i in 0..bin_index.shape()[0] {
             observation_probs[[bin_index[i], frame_index[i]]] =
                 yin_probs[[yin_period[i], frame_index[i]]];
@@ -372,16 +369,19 @@ where
                     / A::from(self.n_pitch_bins).unwrap()),
             );
 
-        let mut p_init = Array1::<A>::zeros(2 * self.n_pitch_bins);
-        p_init
-            .slice_mut(s![self.n_pitch_bins..])
-            .mapv_inplace(|_| A::one() / A::from(self.n_pitch_bins).unwrap());
+        let p_init = Array1::from_shape_fn(2 * self.n_pitch_bins, |i| {
+            if i < self.n_pitch_bins {
+                A::zero()
+            } else {
+                A::one() / A::from(self.n_pitch_bins).unwrap()
+            }
+        });
 
         // Viterbi decoding.
         let (states, _) = viterbi(
             observation_probs.view(),
             self.transition.view(),
-            Some(CowArray::from(p_init)),
+            Some(p_init.into()),
         );
 
         // Find f0 corresponding to each decoded pitch bin.
@@ -391,8 +391,8 @@ where
             self.fmin * (x / A::from(12 * self.n_bins_per_semitone).unwrap()).exp2()
         });
 
-        let mut f0: Array1<A> = (&states % self.n_pitch_bins).mapv(|x| freqs[x]);
-        let voiced_flag: Array1<bool> = states.mapv(|x| x < self.n_pitch_bins);
+        let mut f0 = (&states % self.n_pitch_bins).mapv(|x| freqs[x]);
+        let voiced_flag = states.mapv(|x| x < self.n_pitch_bins);
         azip!((x in &mut f0, &flag in &voiced_flag) {
             if !flag {
                 *x = fill_unvoiced;
@@ -404,7 +404,7 @@ where
     /// Cumulative mean normalized difference function (equation 8 in [#]_)
     fn frame_cum_mean_norm_diff(&mut self, wav: ArrayView1<A>) -> Array2<A> {
         let n_frames = (wav.len() - self.frame_length) / self.hop_length + 1;
-        let mut wav_frames = Array2::<A>::uninit((n_frames, self.frame_length));
+        let mut wav_frames = Array2::uninit((n_frames, self.frame_length));
         wav.windows(self.frame_length)
             .into_iter()
             .step_by(self.hop_length)
@@ -415,7 +415,7 @@ where
         let wav_frames = unsafe { wav_frames.assume_init() };
 
         // Autocorrelation
-        let mut acf_frames = Array2::<A>::uninit((n_frames, self.frame_length - self.win_length));
+        let mut acf_frames = Array2::uninit((n_frames, self.frame_length - self.win_length));
         Zip::from(wav_frames.axis_iter(Axis(0)))
             .and(acf_frames.axis_iter_mut(Axis(0)))
             .for_each(|wav_frame, mut frame| {
