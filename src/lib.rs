@@ -11,7 +11,7 @@ use std::slice;
 use libc::{self, c_double, c_uint, c_void};
 
 use pad::PadMode;
-pub use pyin::PYinExecutor;
+pub use pyin::PYINExecutor;
 
 /// # Safety
 ///
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn pyin(
     };
     let wav = slice::from_raw_parts(input, length).into();
 
-    let mut pyin_executor = PYinExecutor::<c_double>::new(
+    let mut pyin_executor = PYINExecutor::<c_double>::new(
         fmin as f64,
         fmax as f64,
         sr,

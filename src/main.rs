@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use rodio::decoder::DecoderError;
 use rodio::{Decoder, Source};
 
-use pyin::{pad::PadMode, PYinExecutor};
+use pyin::{pad::PadMode, PYINExecutor};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -86,7 +86,7 @@ fn main() {
     let frame_length = ms_to_samples(cli.frame_ms);
     let win_length = cli.win_ms.map(ms_to_samples);
     let hop_length = cli.hop_ms.map(ms_to_samples);
-    let pyin_exec = PYinExecutor::new(
+    let pyin_exec = PYINExecutor::new(
         cli.fmin,
         cli.fmax,
         sr,

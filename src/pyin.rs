@@ -23,7 +23,7 @@ use crate::viterbi::viterbi;
 use crate::windows::WindowType;
 
 #[derive(Getters, Setters, CopyGetters, Clone)]
-pub struct PYinExecutor<A>
+pub struct PYINExecutor<A>
 where
     A: Float
         + FloatConst
@@ -75,7 +75,7 @@ where
     no_trough_prob: A,
 }
 
-impl<A> PYinExecutor<A>
+impl<A> PYINExecutor<A>
 where
     A: Float
         + FloatConst
@@ -195,7 +195,7 @@ where
         let fft_scratch = fft_module.make_scratch_vec();
         let ifft_scratch = ifft_module.make_scratch_vec();
 
-        PYinExecutor {
+        PYINExecutor {
             fmin: A::from(fmin).unwrap(),
             fmax: A::from(fmax).unwrap(),
             sr,
