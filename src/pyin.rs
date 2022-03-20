@@ -49,6 +49,9 @@ where
     max_period: usize,
     fft_module: Arc<dyn RealToComplex<A>>,
     ifft_module: Arc<dyn ComplexToReal<A>>,
+    frame_fft: Array1<Complex<A>>,
+    frame_rev_fft: Array1<Complex<A>>,
+    acf_frame: Array1<A>,
     fft_scratch: Vec<Complex<A>>,
     ifft_scratch: Vec<Complex<A>>,
     n_bins_per_semitone: usize,
@@ -186,8 +189,13 @@ where
         let mut fft_planner = RealFftPlanner::<A>::new();
         let fft_module = fft_planner.plan_fft_forward(frame_length);
         let ifft_module = fft_planner.plan_fft_inverse(frame_length);
+
+        let frame_fft = Array::from(fft_module.make_output_vec());
+        let frame_rev_fft = Array::from(fft_module.make_output_vec());
+        let acf_frame = Array::from(ifft_module.make_output_vec());
         let fft_scratch = fft_module.make_scratch_vec();
         let ifft_scratch = ifft_module.make_scratch_vec();
+
         PYinExecutor {
             fmin: A::from(fmin).unwrap(),
             fmax: A::from(fmax).unwrap(),
@@ -199,6 +207,9 @@ where
             max_period,
             fft_module,
             ifft_module,
+            frame_fft,
+            frame_rev_fft,
+            acf_frame,
             fft_scratch,
             ifft_scratch,
             n_bins_per_semitone,
@@ -405,12 +416,9 @@ where
 
         // Autocorrelation
         let mut acf_frames = Array2::<A>::uninit((n_frames, self.frame_length - self.win_length));
-        let mut frame_fft = Array::from(self.fft_module.make_output_vec());
-        let mut frame_rev_fft = Array::from(self.fft_module.make_output_vec());
-        let mut acf = Array::from(self.ifft_module.make_output_vec());
         Zip::from(wav_frames.axis_iter(Axis(0)))
             .and(acf_frames.axis_iter_mut(Axis(0)))
-            .for_each(|wav_frame, mut acf_frame| {
+            .for_each(|wav_frame, mut frame| {
                 let mut wav_frame = wav_frame.to_owned();
 
                 let mut wav_frame_rev = wav_frame.slice(s![1..self.win_length+1;-1]).pad(
@@ -422,29 +430,29 @@ where
                 self.fft_module
                     .process_with_scratch(
                         wav_frame.as_slice_mut().unwrap(),
-                        frame_fft.as_slice_mut().unwrap(),
+                        self.frame_fft.as_slice_mut().unwrap(),
                         &mut self.fft_scratch,
                     )
                     .unwrap();
                 self.fft_module
                     .process_with_scratch(
                         wav_frame_rev.as_slice_mut().unwrap(),
-                        frame_rev_fft.as_slice_mut().unwrap(),
+                        self.frame_rev_fft.as_slice_mut().unwrap(),
                         &mut self.fft_scratch,
                     )
                     .unwrap();
-                frame_fft *= &frame_rev_fft;
+                self.frame_fft *= &self.frame_rev_fft;
 
                 self.ifft_module
                     .process_with_scratch(
-                        frame_fft.as_slice_mut().unwrap(),
-                        acf.as_slice_mut().unwrap(),
+                        self.frame_fft.as_slice_mut().unwrap(),
+                        self.acf_frame.as_slice_mut().unwrap(),
                         &mut self.ifft_scratch,
                     )
                     .unwrap();
-                acf /= A::from(self.frame_length).unwrap(); // to match Python numpy.fft.irfft
-                Zip::from(acf.slice(s![self.win_length..]))
-                    .and(&mut acf_frame)
+                self.acf_frame /= A::from(self.frame_length).unwrap(); // to match Python numpy.fft.irfft
+                Zip::from(self.acf_frame.slice(s![self.win_length..]))
+                    .and(&mut frame)
                     .for_each(|&x, y| {
                         if x.abs() >= A::from(1e-6).unwrap() {
                             *y = MaybeUninit::new(x);
