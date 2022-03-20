@@ -8,7 +8,7 @@ pub enum PadMode<T> {
     Reflect,
 }
 
-pub trait Pad<A> {
+pub(crate) trait Pad<A> {
     type WithOwnedA;
     fn pad(&self, n_pads: (usize, usize), axis: Axis, mode: PadMode<A>) -> Self::WithOwnedA;
 }

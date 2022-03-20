@@ -1,4 +1,4 @@
-pub mod pad;
+mod pad;
 mod pyin;
 mod roll;
 mod util;
@@ -10,7 +10,7 @@ use std::slice;
 
 use libc::{self, c_double, c_uint, c_void};
 
-use pad::PadMode;
+pub use pad::PadMode;
 pub use pyin::PYINExecutor;
 
 /// # Safety

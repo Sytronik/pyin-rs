@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use rodio::decoder::DecoderError;
 use rodio::{Decoder, Source};
 
-use pyin::{pad::PadMode, PYINExecutor};
+use pyin::{PYINExecutor, PadMode};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
