@@ -405,6 +405,9 @@ where
 
         // Autocorrelation
         let mut acf_frames = Array2::<A>::uninit((n_frames, self.frame_length - self.win_length));
+        let mut frame_fft = Array::from(self.fft_module.make_output_vec());
+        let mut frame_rev_fft = Array::from(self.fft_module.make_output_vec());
+        let mut acf = Array::from(self.ifft_module.make_output_vec());
         Zip::from(wav_frames.axis_iter(Axis(0)))
             .and(acf_frames.axis_iter_mut(Axis(0)))
             .for_each(|wav_frame, mut acf_frame| {
@@ -416,38 +419,33 @@ where
                     PadMode::Constant(A::zero()),
                 );
 
-                let mut a = Array::from(self.fft_module.make_output_vec());
-                let mut b = Array::from(self.fft_module.make_output_vec());
                 self.fft_module
                     .process_with_scratch(
                         wav_frame.as_slice_mut().unwrap(),
-                        a.as_slice_mut().unwrap(),
+                        frame_fft.as_slice_mut().unwrap(),
                         &mut self.fft_scratch,
                     )
                     .unwrap();
                 self.fft_module
                     .process_with_scratch(
                         wav_frame_rev.as_slice_mut().unwrap(),
-                        b.as_slice_mut().unwrap(),
+                        frame_rev_fft.as_slice_mut().unwrap(),
                         &mut self.fft_scratch,
                     )
                     .unwrap();
-                a *= &b;
+                frame_fft *= &frame_rev_fft;
 
-                let mut frame = Array::from(self.ifft_module.make_output_vec());
                 self.ifft_module
                     .process_with_scratch(
-                        a.as_slice_mut().unwrap(),
-                        frame.as_slice_mut().unwrap(),
+                        frame_fft.as_slice_mut().unwrap(),
+                        acf.as_slice_mut().unwrap(),
                         &mut self.ifft_scratch,
                     )
                     .unwrap();
-                frame /= A::from(self.frame_length).unwrap(); // to match Python numpy.fft.irfft
-                frame
-                    .slice_move(s![self.win_length..])
-                    .into_iter()
-                    .zip(acf_frame.iter_mut())
-                    .for_each(|(x, y)| {
+                acf /= A::from(self.frame_length).unwrap(); // to match Python numpy.fft.irfft
+                Zip::from(acf.slice(s![self.win_length..]))
+                    .and(&mut acf_frame)
+                    .for_each(|&x, y| {
                         if x.abs() >= A::from(1e-6).unwrap() {
                             *y = MaybeUninit::new(x);
                         } else {
