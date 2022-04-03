@@ -334,27 +334,29 @@ where
                     .axis_iter(Axis(1))
                     .map(|x| x.iter().filter(|v| **v).count())
                     .collect();
-                let trough_prior = Array::from_shape_fn(trough_positions.raw_dim(), |(i, j)| {
-                    if trough_thresholds[[i, j]] {
-                        A::from(boltzmann_pmf(
-                            trough_positions[[i, j]],
-                            self.boltzmann_parameter,
-                            n_troughs[j],
-                        ))
-                        .unwrap()
-                    } else {
-                        A::zero()
-                    }
-                });
+                let mut trough_prior =
+                    Array::from_shape_fn(trough_positions.raw_dim(), |(i, j)| {
+                        if trough_thresholds[[i, j]] {
+                            A::from(boltzmann_pmf(
+                                trough_positions[[i, j]],
+                                self.boltzmann_parameter,
+                                n_troughs[j],
+                            ))
+                            .unwrap()
+                        } else {
+                            A::zero()
+                        }
+                    });
 
                 // 5. For each threshold add probability to global minimum if no trough is below threshold,
                 // else add probability to each trough below threshold biased by prior.
-                let mut probs = (trough_prior * &self.beta_probs).sum_axis(Axis(1));
+                trough_prior *= &self.beta_probs;
+                let mut probs = trough_prior.sum_axis(Axis(1));
                 let global_min = idxs_trough.mapv(|i| yin_frame[i]).argmin_skipnan().unwrap();
                 let n_thresholds_below_min = trough_thresholds
-                    .slice(s![global_min, ..])
-                    .iter()
-                    .filter(|&&x| !x)
+                    .slice_move(s![global_min, ..])
+                    .into_iter()
+                    .filter(|x| !x)
                     .count();
                 probs[global_min] +=
                     self.no_trough_prob * self.beta_probs.slice(s![..n_thresholds_below_min]).sum();
