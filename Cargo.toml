@@ -1,10 +1,15 @@
 [package]
 authors = ["Sytronik <sytronik210@gmail.com>"]
+categories = ["algorithms"]
 description = "pYIN pitch detection algorithm written in Rust"
+documentation = "https://docs.rs/pyin"
 edition = "2021"
+exclude = ["/samples", "/include", "/test"]
+keywords = ["audio", "pitch", "speech", "voice"]
 license = "MIT"
 name = "pyin"
-version = "1.0.0"
+repository = "https://github.com/Sytronik/pyin-rs"
+version = "1.0.2"
 
 [lib]
 crate-type = ["rlib", "cdylib"]

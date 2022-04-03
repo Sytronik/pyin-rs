@@ -1,5 +1,8 @@
 # pYIN algorithm written in Rust
 
+[![Crates.io Version](https://img.shields.io/crates/v/pyin.svg)](https://crates.io/crates/pyin)
+[![Crates.io Downloads](https://img.shields.io/crates/d/pyin.svg)](https://crates.io/crates/pyin)
+
 This crate provides a pitch estimate for each frame of the audio signal and a probability the frame is voiced region.
 
 The implementation is based on [librosa](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
@@ -44,7 +47,7 @@ Add the following to your `Cargo.toml`:
 
 ```
 [dependencies]
-pyin = {git = "https://github.com/Sytronik/pyin-rs.git", tag = "v1.0.0"}
+pyin = "1.0"
 ```
 
 ## TODO
