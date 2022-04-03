@@ -86,7 +86,7 @@ fn main() {
     let frame_length = ms_to_samples(cli.frame_ms);
     let win_length = cli.win_ms.map(ms_to_samples);
     let hop_length = cli.hop_ms.map(ms_to_samples);
-    let pyin_exec = PYINExecutor::new(
+    let mut pyin_exec = PYINExecutor::new(
         cli.fmin,
         cli.fmax,
         sr,
@@ -95,17 +95,24 @@ fn main() {
         hop_length,
         cli.resolution,
     );
-    let results: Vec<_> = wav
-        .axis_iter(Axis(0))
-        .par_bridge()
-        .map(|mono| {
-            pyin_exec.clone().pyin(
-                mono.into(),
-                f64::NAN,
-                Framing::Center(PadMode::Constant(0.)),
-            )
-        })
-        .collect();
+    let results: Vec<_> = if wav.shape()[0] > 1 {
+        wav.axis_iter(Axis(0))
+            .par_bridge()
+            .map(|mono| {
+                pyin_exec.clone().pyin(
+                    mono.into(),
+                    f64::NAN,
+                    Framing::Center(PadMode::Constant(0.)),
+                )
+            })
+            .collect()
+    } else {
+        vec![pyin_exec.pyin(
+            wav.remove_axis(Axis(0)).into(),
+            f64::NAN,
+            Framing::Center(PadMode::Constant(0.)),
+        )]
+    };
     let pyin_result =
         Array3::from_shape_fn(
             (3, results.len(), results[0].0.len()),
