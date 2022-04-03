@@ -1,12 +1,11 @@
-use std::fs::File;
 use std::io;
+use std::path::Path;
 
 use clap::Parser;
+use creak::{Decoder, DecoderError};
 use ndarray::prelude::*;
 use ndarray_npy::WriteNpyExt;
 use rayon::prelude::*;
-use rodio::decoder::DecoderError;
-use rodio::{Decoder, Source};
 
 use pyin::{Framing, PYINExecutor, PadMode};
 
@@ -46,11 +45,17 @@ struct Cli {
     #[clap(short, long)]
     verbose: bool,
 }
-fn decode_audio_file(file: File) -> Result<(Array2<f32>, u32), DecoderError> {
-    let source = Decoder::new(io::BufReader::new(file))?;
-    let sr = source.sample_rate();
-    let channels = source.channels() as usize;
-    let mut vec: Vec<_> = source.collect();
+
+fn decode_audio_file<P: AsRef<Path>>(path: P) -> Result<(Array2<f32>, u32), DecoderError> {
+    let decoder = Decoder::open(path)?;
+    let info = decoder.info();
+    let sr = info.sample_rate();
+    let channels = info.channels();
+
+    let mut vec: Vec<f32> = Vec::with_capacity(channels);
+    for sample in decoder.into_samples()? {
+        vec.push(sample?);
+    }
     if vec.len() < channels {
         (vec.len()..channels).into_iter().for_each(|_| vec.push(0.));
     }
@@ -67,10 +72,8 @@ fn main() {
         // let mut input = std::io::stdin();
         unimplemented!()
     } else {
-        let file = File::open(&cli.input)
-            .unwrap_or_else(|_| panic!("Inpuf file \"{}\" not found!", &cli.input));
-
-        decode_audio_file(file).expect("Failed to decode audio file!")
+        decode_audio_file(&cli.input)
+            .expect(&format!("Failed to decode input audio \"{}\"!", &cli.input))
     };
     let output_writer = io::BufWriter::new(if &cli.output == "-" {
         Box::new(std::io::stdout()) as Box<dyn io::Write>
