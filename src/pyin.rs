@@ -55,13 +55,11 @@ where
     fft_scratch: Vec<Complex<A>>,
     ifft_scratch: Vec<Complex<A>>,
     n_bins_per_semitone: usize,
-    #[getset(get_copy = "pub")]
     n_pitch_bins: usize,
     #[getset(get_copy = "pub")]
     n_thresholds: usize,
     #[getset(get_copy = "pub")]
     beta_parameters: (f64, f64),
-    #[getset(get = "pub")]
     beta_probs: Array1<A>,
     #[getset(get_copy = "pub", set = "pub")]
     boltzmann_parameter: f64,
@@ -69,7 +67,6 @@ where
     max_transition_rate: f64,
     #[getset(get_copy = "pub")]
     switch_prob: A,
-    #[getset(get = "pub")]
     transition: Array2<A>,
     #[getset(get_copy = "pub", set = "pub")]
     no_trough_prob: A,
