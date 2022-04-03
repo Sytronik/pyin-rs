@@ -17,7 +17,7 @@ use realfft::{
 };
 use statrs::distribution::{Beta, ContinuousCDF};
 
-use crate::pad::{Pad, PadMode};
+use crate::pad::{Framing, Pad, PadMode};
 use crate::util::*;
 use crate::viterbi::viterbi;
 use crate::windows::WindowType;
@@ -225,10 +225,9 @@ where
         &mut self,
         wav: CowArray<A, Ix1>,
         fill_unvoiced: A,
-        center: bool,
-        pad_mode: PadMode<A>,
+        framing: Framing<A>,
     ) -> (Array1<A>, Array1<bool>, Array1<A>) {
-        let wav = if center {
+        let wav = if let Framing::Center(pad_mode) = framing {
             wav.pad(
                 (self.frame_length / 2, self.frame_length / 2),
                 Axis(0),

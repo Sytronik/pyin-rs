@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use rodio::decoder::DecoderError;
 use rodio::{Decoder, Source};
 
-use pyin::{PYINExecutor, PadMode};
+use pyin::{Framing, PYINExecutor, PadMode};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -99,9 +99,11 @@ fn main() {
         .axis_iter(Axis(0))
         .par_bridge()
         .map(|mono| {
-            pyin_exec
-                .clone()
-                .pyin(mono.into(), f64::NAN, true, PadMode::Constant(0.))
+            pyin_exec.clone().pyin(
+                mono.into(),
+                f64::NAN,
+                Framing::Center(PadMode::Constant(0.)),
+            )
         })
         .collect();
     let pyin_result =

@@ -10,7 +10,7 @@ use std::slice;
 
 use libc::{self, c_double, c_uint, c_void};
 
-pub use pad::PadMode;
+pub use pad::{Framing, PadMode};
 pub use pyin::PYINExecutor;
 
 /// C lang FFI for pYIN (Single-channel only)
@@ -95,8 +95,12 @@ pub unsafe extern "C" fn pyin(
         hop_length,
         resolution,
     );
-    let (_f0, _voiced_flag, _voiced_prob) =
-        pyin_executor.pyin(wav, fill_unvoiced, center, pad_mode);
+    let framing = if center {
+        Framing::Center(pad_mode)
+    } else {
+        Framing::Valid
+    };
+    let (_f0, _voiced_flag, _voiced_prob) = pyin_executor.pyin(wav, fill_unvoiced, framing);
 
     *n_frames = _f0.len() as c_uint;
     let double_memsize = _f0.len() * mem::size_of::<c_double>();
