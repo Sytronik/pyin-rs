@@ -3,8 +3,20 @@ use std::mem::MaybeUninit;
 use ndarray::OwnedRepr;
 use ndarray::{prelude::*, Data, RemoveAxis, Slice, Zip};
 
+/// Represents where the first frame starts.
+pub enum Framing<T> {
+    /// The first sample of audio signal becomes the center of the first frame. So, padding is added to the left.
+    Center(PadMode<T>),
+    /// The first sample of audio signal becomes the first sample of the first frame. So, padding is not added.
+    Valid,
+}
+
+/// Padding mode
 pub enum PadMode<T> {
+    /// Constant padding
     Constant(T),
+
+    /// Reflection padding
     Reflect,
 }
 

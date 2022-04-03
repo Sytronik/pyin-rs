@@ -1,5 +1,3 @@
-//! Reference: https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin
-
 use std::cmp::Ord;
 use std::iter;
 use std::mem::MaybeUninit;
@@ -22,6 +20,11 @@ use crate::util::*;
 use crate::viterbi::viterbi;
 use crate::windows::WindowType;
 
+/// pYIN algorithm executor.
+///
+/// It's generic over the input type, which can be`f32` or `f64`.
+/// It contains memory for the FFTs and some reusable constants.
+/// The [`new()`](Self::new) method creates a new instance, and the [`pyin()`](Self::pyin) method executes the algorithm.
 #[derive(Getters, Setters, CopyGetters, Clone)]
 pub struct PYINExecutor<A>
 where
@@ -56,18 +59,30 @@ where
     ifft_scratch: Vec<Complex<A>>,
     n_bins_per_semitone: usize,
     n_pitch_bins: usize,
+
+    /// number of thresholds for peak estimation. (always returns `100`)
     #[getset(get_copy = "pub")]
     n_thresholds: usize,
+
+    /// shape parameters for the beta distribution prior over thresholds. (always returns `(2.0, 18.0)`)
     #[getset(get_copy = "pub")]
     beta_parameters: (f64, f64),
     beta_probs: Array1<A>,
+
+    /// shape parameter for the Boltzmann distribution prior over troughs. Larger values will assign more mass to smaller periods. (default: `2.0`)
     #[getset(get_copy = "pub", set = "pub")]
     boltzmann_parameter: f64,
+
+    /// maximum pitch transition rate in octaves per second. (always returns `35.92`)
     #[getset(get_copy = "pub")]
     max_transition_rate: f64,
+
+    /// probability of switching from voiced to unvoiced or vice versa. (always returns `0.01`)
     #[getset(get_copy = "pub")]
     switch_prob: A,
     transition: Array2<A>,
+
+    /// maximum probability to add to global minimum if no trough is below threshold. (default: `0.01`)
     #[getset(get_copy = "pub", set = "pub")]
     no_trough_prob: A,
 }
@@ -88,6 +103,16 @@ where
         + AbsDiffEq<Epsilon = A>,
     <A as MaybeNan>::NotNan: Ord,
 {
+    /// Create a new PYIN executor instance.
+    ///
+    /// # Arguments
+    /// * `fmin` - minimum frequency in Hz
+    /// * `fmax` - maximum frequency in Hz
+    /// * `sr` - sampling rate in Hz
+    /// * `frame_length` - frame length in samples
+    /// * `win_length` - length of the window for calculating autocorrelation in samples. (If `None`, defaults to `frame_length/2`)
+    /// * `hop_length` - number of audio samples between adjacent pYIN predictions. (If `None`, defaults to `frame_length/4`)
+    /// * `resolution` - Resolution of the pitch bins. should be `0` < `resolution` < `1`. `0.01` corresponds to cents.(If `None`, defaults to `0.1`)
     pub fn new(
         fmin: f64,
         fmax: f64,
@@ -221,6 +246,18 @@ where
         }
     }
 
+    /// Execute pYIN algorithm.
+    ///
+    /// # Arguments
+    /// * `wav` - audio signal
+    /// * `fill_unvoiced` - value to fill unvoiced frames. Typically, it is `0.0` or `<A as Float>::nan()`.
+    /// * `framing` - where the first frame starts. Refer to [Framing](enum@Framing)
+    ///
+    /// # Returns
+    /// `(f0: Array1<A>, voiced_flag: Array1<bool>, voiced_prob: Array1<A>)`
+    /// * `f0` - contains estimated pitch in Hz. (If unvoiced, it is `fill_unvoiced`.)
+    /// * `voiced_flag` - contains whether each frame is voiced or unvoiced.
+    /// * `voiced_prob` - contains probability of each frame being voiced.
     pub fn pyin(
         &mut self,
         wav: CowArray<A, Ix1>,

@@ -1,3 +1,37 @@
+//! pYIN[^paper] is a pitch (fundamental frequency) detection algorithm.
+//!
+//! This crate provides a pitch estimate for each frame of the audio signal and a probability the frame is voiced region.
+//!
+//! This crate provides a C language FFI and an executable binary. For the details of the executable binary, refer to the [repo](https://github.com/Sytronik/pyin-rs).
+//!
+//! The implementation is based on [librosa v0.9.1](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
+//! For easy translation from Python + Numpy to Rust, the implementation is written on top of [ndarray](https://crates.io/crates/ndarray) crate.
+//!
+//! ## Usage
+//! ```
+//! use ndarray::prelude::*;
+//! use pyin::{PYINExecutor, PadMode};
+//!
+//! let fmin = 60f64;  // minimum frequency in Hz
+//! let fmax = 600f64; // maximum frequency in Hz
+//! let sr = 24000;    // sampling rate of audio data in Hz
+//! let frame_length = 2048; // frame length in samples
+//! let (win_length, hop_length, resolution) = (None, None, None);  // None to use default values
+//! let mut pyin_exec = PYINExecutor::new(fmin, fmax, sr, frame_length, win_length, hop_length, resolution);
+//!
+//! // let wav: CowArray<f64, Ix1> = ...;
+//! let fill_unvoiced = f64::NAN;
+//! let center = true;  // If true, the first sample in wav becomes the center of the first frame.
+//! let pad_mode = PadMode::Constant(0.);  // Zero-padding is applied on both sides of the signal. (only if cetner is true)
+//!
+//! // f0 (Array1<f64>) contains the pitch estimate in Hz. (NAN if unvoiced)
+//! // voiced_flag (Array1<bool>) contains whether the frame is voiced or not.
+//! // voiced_prob (Array1<f64>) contains the probability of the frame is voiced.
+//! let (f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, center, pad_mode);
+//! ```
+//!
+//! [^paper]: Mauch, Matthias, and Simon Dixon. “pYIN: A fundamental frequency estimator using probabilistic threshold distributions.” 2014 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP). IEEE, 2014.
+
 mod pad;
 mod pyin;
 mod roll;
@@ -13,7 +47,17 @@ use libc::{self, c_double, c_uint, c_void};
 pub use pad::{Framing, PadMode};
 pub use pyin::PYINExecutor;
 
-/// C lang FFI for pYIN (Single-channel only)
+/// C lang FFI for pYIN
+///
+/// detailed documentation is in [`PYINExecutor`](pyin::PYINExecutor)
+///
+/// # Note
+///
+/// - If `win_length` is `0`, use default value (frame_length / 2)
+/// - If `hop_length` is `0`, use default value (frame_length / 4)
+/// - If `resolution` <= 0, use default value (0.1)
+/// - If `pad_mode` is 0, zero padding. If 1, reflection padding
+///
 ///
 /// # Safety
 ///

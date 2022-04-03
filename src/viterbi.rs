@@ -1,5 +1,3 @@
-//! Reference: https://librosa.org/doc/0.9.1/_modules/librosa/sequence.html#viterbi
-//!
 use std::cmp::Ord;
 use std::fmt::Debug;
 use std::ops::Add;

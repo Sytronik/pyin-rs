@@ -1,6 +1,9 @@
 # pYIN algorithm written in Rust
 
+This crate provides a pitch estimate for each frame of the audio signal and a probability the frame is voiced region.
+
 The implementation is based on [librosa](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
+For easy translation from Python + Numpy to Rust, the implementation is written on top of [ndarray](https://crates.io/crates/ndarray) crate.
 
 ## Build & Run
 
@@ -21,7 +24,7 @@ cargo build --release
 
 #### Note
 
-- Supported audio files: the same as [Rodio](https://github.com/RustAudio/rodio)
+- Supported audio files: the same as [Creak](https://crates.io/crates/creak) crate.
   - Multi-channel audio files are supported.
 - output file: npy file contains an ndarray (shape=(3, no. of channels in input audio, no. of frames), data=[f0_array, voiced_flag_array, voiced_probs_array])
 - If "-" is used as the output filename, the app will send output data to stdout.
