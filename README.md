@@ -1,6 +1,7 @@
 # pYIN algorithm written in Rust
 
 [![Crates.io Version](https://img.shields.io/crates/v/pyin.svg)](https://crates.io/crates/pyin)
+[![Docs.rs](https://docs.rs/pyin/badge.svg)](https://docs.rs/pyin)
 [![Crates.io Downloads](https://img.shields.io/crates/d/pyin.svg)](https://crates.io/crates/pyin)
 
 This crate provides a pitch estimate for each frame of the audio signal and a probability the frame is voiced region.
