@@ -5,7 +5,7 @@ use std::ops::Add;
 use approx::{abs_diff_eq, AbsDiffEq};
 use ndarray::prelude::*;
 use ndarray_stats::{MaybeNan, QuantileExt};
-use rustfft::num_traits::Float;
+use realfft::num_traits::Float;
 
 /// Viterbi decoding from observation likelihoods.
 /// Given a sequence of observation likelihoods `prob[s, t]`,

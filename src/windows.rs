@@ -1,7 +1,7 @@
 use std::ops::Div;
 
 use ndarray::{concatenate, prelude::*, ScalarOperand};
-use rustfft::num_traits::{Float, FloatConst, FromPrimitive, ToPrimitive};
+use realfft::num_traits::{Float, FloatConst, FromPrimitive, ToPrimitive};
 
 #[allow(dead_code)]
 #[derive(Clone, Copy)]

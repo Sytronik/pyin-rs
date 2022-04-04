@@ -4,7 +4,7 @@ categories = ["algorithms"]
 description = "pYIN pitch detection algorithm written in Rust"
 documentation = "https://docs.rs/pyin"
 edition = "2021"
-exclude = ["/samples", "/include", "/test"]
+exclude = ["/include", "/samples", "/test"]
 keywords = ["audio", "pitch", "speech", "voice"]
 license = "MIT"
 name = "pyin"
@@ -12,7 +12,7 @@ repository = "https://github.com/Sytronik/pyin-rs"
 version = "1.0.2"
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["cdylib", "rlib"]
 name = "pyin"
 path = "src/lib.rs"
 
@@ -26,11 +26,9 @@ clap = {version = "3.1.6", features = ["derive"]}
 creak = "0.3.0"
 getset = "0.1.2"
 libc = "0.2.120"
-ndarray = {version = "0.15.4", features = ["rayon", "approx-0_5"]}
+ndarray = {version = "0.15.4", features = ["approx-0_5", "rayon"]}
 ndarray-npy = "0.8.1"
 ndarray-stats = "0.5.0"
-num-traits = "0.2.14"
 rayon = "1.5.1"
 realfft = "3.0.0"
-rustfft = "6.0.1"
 statrs = "0.15.0"
