@@ -4,14 +4,14 @@
 [![Docs.rs](https://docs.rs/pyin/badge.svg)](https://docs.rs/pyin)
 [![Crates.io Downloads](https://img.shields.io/crates/d/pyin.svg)](https://crates.io/crates/pyin)
 
-This crate provides a pitch estimate for each frame of the audio signal and a probability the frame is voiced region.
+This crate provides a pitch estimate for each frame of the audio signal and a probability that the frame is a voiced region.
 
 The implementation is based on [librosa](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
 For easy translation from Python + Numpy to Rust, the implementation is written on top of [ndarray](https://crates.io/crates/ndarray) crate.
 
 ## Build & Run
 
-You can use this both as a executable binary and as a library (C shared library and Rust library).
+You can use this both as an executable binary and as a library (C shared library and Rust library).
 
 ### As an executable binary
 
