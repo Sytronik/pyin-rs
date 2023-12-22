@@ -254,7 +254,8 @@ where
     /// * `framing` - where the first frame starts. Refer to [Framing](enum@Framing)
     ///
     /// # Returns
-    /// `(f0: Array1<A>, voiced_flag: Array1<bool>, voiced_prob: Array1<A>)`
+    /// `(timestamp: Array1<f64>, f0: Array1<A>, voiced_flag: Array1<bool>, voiced_prob: Array1<A>)`
+    /// * `timestamp` - contains the timestamp (in seconds) of each frames
     /// * `f0` - contains estimated pitch in Hz. (If unvoiced, it is `fill_unvoiced`.)
     /// * `voiced_flag` - contains whether each frame is voiced or unvoiced.
     /// * `voiced_prob` - contains probability of each frame being voiced.
@@ -263,7 +264,7 @@ where
         wav: CowArray<A, Ix1>,
         fill_unvoiced: A,
         framing: Framing<A>,
-    ) -> (Array1<A>, Array1<bool>, Array1<A>) {
+    ) -> (Array1<f64>, Array1<A>, Array1<bool>, Array1<A>) {
         let wav = if let Framing::Center(pad_mode) = framing {
             wav.pad(
                 (self.frame_length / 2, self.frame_length / 2),
@@ -433,7 +434,13 @@ where
                 *x = fill_unvoiced;
             }
         });
-        (f0, voiced_flag, voiced_prob)
+
+        let timestamp_sec = (0..f0.shape()[0]).map(|i| self.frame_to_sec(i)).collect();
+        (timestamp_sec, f0, voiced_flag, voiced_prob)
+    }
+
+    pub fn frame_to_sec(&self, i_frame: usize) -> f64 {
+        i_frame as f64 * self.hop_length as f64 / self.sr as f64
     }
 
     /// Cumulative mean normalized difference function (equation 8 in [#]_)

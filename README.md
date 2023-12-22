@@ -30,7 +30,12 @@ cargo build --release
 
 - Supported audio files: the same as [Creak](https://crates.io/crates/creak) crate.
   - Multi-channel audio files are supported.
-- output file: npy file contains an ndarray (shape=(3, no. of channels in input audio, no. of frames), data=[f0_array, voiced_flag_array, voiced_probs_array])
+- output file: npy file contains the output ndarray with
+  - shape: (4, no. of channels in input audio, no. of frames)
+  - [0, :, :]: timestamp [sec]
+  - [1, :, :]: f0 array [Hz]
+  - [2, :, :]: voiced flag(1.0 for voiced, 0.0 for unvoiced) array
+  - [3, :, :]: voiced probability array
 - If "-" is used as the output filename, the app will send output data to stdout.
 
 ### Example using pYIN as a C shared library

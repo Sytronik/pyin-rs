@@ -118,19 +118,27 @@ fn main() {
     };
     let pyin_result =
         Array3::from_shape_fn(
-            (3, results.len(), results[0].0.len()),
+            (4, results.len(), results[0].0.len()),
             |(i, j, k)| match i {
                 0 => results[j].0[k],
-                1 => results[j].1[k] as usize as f64,
-                2 => results[j].2[k],
+                1 => results[j].1[k],
+                2 => {
+                    if results[j].2[k] {
+                        1.
+                    } else {
+                        0.
+                    }
+                }
+                3 => results[j].3[k],
                 _ => unreachable!(),
             },
         );
 
     if cli.verbose && &cli.output != "-" {
-        println!("f0 = {}", pyin_result.index_axis(Axis(0), 0));
-        println!("voiced_flag = {}", pyin_result.index_axis(Axis(0), 1));
-        println!("voiced_prob = {}", pyin_result.index_axis(Axis(0), 2));
+        println!("time [sec] = {}", pyin_result.index_axis(Axis(0), 0));
+        println!("f0 [Hz] = {}", pyin_result.index_axis(Axis(0), 1));
+        println!("voiced_flag = {}", pyin_result.index_axis(Axis(0), 2));
+        println!("voiced_prob = {}", pyin_result.index_axis(Axis(0), 3));
     }
     pyin_result
         .write_npy(output_writer)

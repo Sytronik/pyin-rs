@@ -24,10 +24,11 @@
 //! let center = true;  // If true, the first sample in wav becomes the center of the first frame.
 //! let pad_mode = PadMode::Constant(0.);  // Zero-padding is applied on both sides of the signal. (only if cetner is true)
 //!
+//! // timestamp (Array1<f64>) - contains the timestamp (in seconds) of each frames
 //! // f0 (Array1<f64>) contains the pitch estimate in Hz. (NAN if unvoiced)
 //! // voiced_flag (Array1<bool>) contains whether the frame is voiced or not.
 //! // voiced_prob (Array1<f64>) contains the probability of the frame is voiced.
-//! let (f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, center, pad_mode);
+//! let (timestamp, f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, center, pad_mode);
 //! ```
 //!
 //! [^paper]: Mauch, Matthias, and Simon Dixon. “pYIN: A fundamental frequency estimator using probabilistic threshold distributions.” 2014 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP). IEEE, 2014.
@@ -66,6 +67,7 @@ pub use pyin::PYINExecutor;
 #[no_mangle]
 pub unsafe extern "C" fn pyin(
     // outputs
+    timestamp: *mut *mut c_double,
     f0: *mut *mut c_double,
     voiced_flag: *mut *mut bool,
     voiced_prob: *mut *mut c_double,
@@ -144,17 +146,28 @@ pub unsafe extern "C" fn pyin(
     } else {
         Framing::Valid
     };
-    let (_f0, _voiced_flag, _voiced_prob) = pyin_executor.pyin(wav, fill_unvoiced, framing);
+    let (_timestamp, _f0, _voiced_flag, _voiced_prob) =
+        pyin_executor.pyin(wav, fill_unvoiced, framing);
 
     *n_frames = _f0.len() as c_uint;
     let double_memsize = _f0.len() * mem::size_of::<c_double>();
     let bool_memsize = _voiced_flag.len() * mem::size_of::<bool>();
+    *timestamp = libc::malloc(double_memsize) as *mut c_double;
     *f0 = libc::malloc(double_memsize) as *mut c_double;
     *voiced_flag = libc::malloc(bool_memsize) as *mut bool;
     *voiced_prob = libc::malloc(double_memsize) as *mut c_double;
-    if (*f0).is_null() || (*voiced_flag).is_null() || (*voiced_prob).is_null() {
+    if (*timestamp).is_null()
+        || (*f0).is_null()
+        || (*voiced_flag).is_null()
+        || (*voiced_prob).is_null()
+    {
         return libc::EINVAL as isize;
     }
+    libc::memcpy(
+        *timestamp as *mut c_void,
+        _timestamp.as_ptr() as *const c_void,
+        double_memsize,
+    );
     libc::memcpy(
         *f0 as *mut c_void,
         _f0.as_ptr() as *const c_void,
