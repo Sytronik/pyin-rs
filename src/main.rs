@@ -100,7 +100,7 @@ fn main() {
     );
     let results: Vec<_> = if wav.shape()[0] > 1 {
         wav.axis_iter(Axis(0))
-            .par_bridge()
+            .into_par_iter()
             .map(|mono| {
                 pyin_exec.clone().pyin(
                     mono.into(),
