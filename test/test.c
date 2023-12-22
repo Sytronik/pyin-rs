@@ -10,6 +10,7 @@ int main(void)
     unsigned int length = sr * 3;
     double *wav = (double *)malloc(sizeof(double) * length);
     unsigned int frame_length = 2048;
+    double *timestamp = NULL;
     double *f0 = NULL;
     bool *voiced_flag = NULL;
     double *voiced_prob = NULL;
@@ -22,7 +23,7 @@ int main(void)
     for (int i = 2 * sr; i < 3 * sr; i++)
         wav[i] = sin(2 * M_PI * 480 * i / sr);
 
-    int result = pyin(&f0, &voiced_flag, &voiced_prob, &n_frames,
+    int result = pyin(&timestamp, &f0, &voiced_flag, &voiced_prob, &n_frames,
                       wav, length, sr, 80., 800., frame_length, 0, 0, 0,
                       NAN, true, 0);
 
@@ -30,7 +31,11 @@ int main(void)
     printf("n_frames: %d\n", n_frames);
     if (n_frames > 0)
     {
-        printf("f0: [");
+        printf("timestamp (sec): [");
+        for (int i = 0; i < n_frames; i++)
+            printf("%.3f, ", timestamp[i]);
+        printf("]\n");
+        printf("f0 (Hz): [");
         for (int i = 0; i < n_frames; i++)
             printf("%.2f, ", f0[i]);
         printf("]\n");
@@ -50,6 +55,7 @@ int main(void)
     }
 
     free(wav);
+    free(timestamp);
     free(f0);
     free(voiced_flag);
     free(voiced_prob);

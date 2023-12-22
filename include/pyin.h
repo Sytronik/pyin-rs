@@ -7,6 +7,7 @@
 // prevent a memory leak.
 int pyin(
     // outputs
+    double **timestamp,
     double **f0,
     bool **voiced_flag,
     double **voiced_prob,
