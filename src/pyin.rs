@@ -250,12 +250,12 @@ where
     /// Execute pYIN algorithm.
     ///
     /// # Arguments
-    /// * `wav` - audio signal
+    /// * `wav` - audio signal (Vec<A>)
     /// * `fill_unvoiced` - value to fill unvoiced frames. Typically, it is `0.0` or `<A as Float>::nan()`.
     /// * `framing` - where the first frame starts. Refer to [Framing](enum@Framing)
     ///
     /// # Returns
-    /// `(timestamp: Array1<f64>, f0: Array1<A>, voiced_flag: Array1<bool>, voiced_prob: Array1<A>)`
+    /// `(timestamp: Vec<f64>, f0: Vec<A>, voiced_flag: Vec<bool>, voiced_prob: Vec<A>)`
     /// * `timestamp` - contains the timestamp (in seconds) of each frames
     /// * `f0` - contains estimated pitch in Hz. (If unvoiced, it is `fill_unvoiced`.)
     /// * `voiced_flag` - contains whether each frame is voiced or unvoiced.
