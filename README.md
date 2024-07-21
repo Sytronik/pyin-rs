@@ -55,6 +55,7 @@ Add the following to your `Cargo.toml`:
 ```
 [dependencies]
 pyin = "1.2.0"
+# or, pyin = {version = "1.2.0", features = ["blas"]}
 ```
 
 ## TODO
