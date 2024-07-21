@@ -261,10 +261,11 @@ where
     /// * `voiced_prob` - contains probability of each frame being voiced.
     pub fn pyin(
         &mut self,
-        wav: CowArray<A, Ix1>,
+        wav: &[A],
         fill_unvoiced: A,
         framing: Framing<A>,
-    ) -> (Array1<f64>, Array1<A>, Array1<bool>, Array1<A>) {
+    ) -> (Vec<f64>, Vec<A>, Vec<bool>, Vec<A>) {
+        let wav = CowArray::from(wav);
         let wav = if let Framing::Center(pad_mode) = framing {
             wav.pad(
                 (self.frame_length / 2, self.frame_length / 2),
@@ -436,7 +437,12 @@ where
         });
 
         let timestamp_sec = (0..f0.shape()[0]).map(|i| self.frame_to_sec(i)).collect();
-        (timestamp_sec, f0, voiced_flag, voiced_prob)
+        (
+            timestamp_sec,
+            f0.into_raw_vec(),
+            voiced_flag.into_raw_vec(),
+            voiced_prob.into_raw_vec(),
+        )
     }
 
     pub fn frame_to_sec(&self, i_frame: usize) -> f64 {
