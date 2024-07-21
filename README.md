@@ -54,7 +54,7 @@ Add the following to your `Cargo.toml`:
 
 ```
 [dependencies]
-pyin = "1.1.0"
+pyin = "1.2.0"
 ```
 
 ## TODO
