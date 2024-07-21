@@ -16,19 +16,23 @@ crate-type = ["cdylib", "rlib"]
 name = "pyin"
 path = "src/lib.rs"
 
+[features]
+build-binary = ["clap", "creak", "ndarray/rayon", "rayon"]
+
 [[bin]]
 name = "pyin"
 path = "src/main.rs"
+required-features = ["build-binary"]
 
 [dependencies]
 approx = "0.5.1"
-clap = {version = "4.4.11", features = ["derive"]}
-creak = "0.3.0"
+clap = {version = "4.4.11", features = ["derive"], optional = true}
+creak = {version = "0.3.0", optional = true}
 getset = "0.1.2"
 libc = "0.2.151"
-ndarray = {version = "0.15.6", features = ["approx-0_5", "rayon"]}
+ndarray = {version = "0.15.6", features = ["approx-0_5"]}
 ndarray-npy = "0.8.1"
 ndarray-stats = "0.5.1"
-rayon = "1.8.0"
+rayon = {version = "1.8.0", optional = true}
 realfft = "3.3.0"
 statrs = "0.16.0"
