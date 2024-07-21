@@ -9,6 +9,27 @@ This crate provides a pitch estimate for each frame of the audio signal and a pr
 The implementation is based on [librosa](https://librosa.org/doc/0.9.1/_modules/librosa/core/pitch.html#pyin).
 For easy translation from Python + Numpy to Rust, the implementation is written on top of [ndarray](https://crates.io/crates/ndarray) crate.
 
+
+## Download & Run
+
+You can download the executable binary from the [Releases](https://github.com/Sytronik/pyin-rs/releases) page.
+
+```
+pyin <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
+```
+
+#### Note
+
+- Supported audio files: the same as [Creak](https://crates.io/crates/creak) crate.
+  - Multi-channel audio files are supported.
+- output file: npy file contains the output ndarray with
+  - shape: (4, no. of channels in input audio, no. of frames)
+  - [0, :, :]: timestamp [sec]
+  - [1, :, :]: f0 array [Hz]
+  - [2, :, :]: voiced flag(1.0 for voiced, 0.0 for unvoiced) array
+  - [3, :, :]: voiced probability array
+- If "-" is used as the output filename, the app will send output data to stdout.
+
 ## Build & Run
 
 You can use this both as an executable binary and as a library (C shared library and Rust library).
@@ -26,18 +47,6 @@ or
 cargo build -F build-binary[,blas] --release
 ./target/release/pyin <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
 ```
-
-#### Note
-
-- Supported audio files: the same as [Creak](https://crates.io/crates/creak) crate.
-  - Multi-channel audio files are supported.
-- output file: npy file contains the output ndarray with
-  - shape: (4, no. of channels in input audio, no. of frames)
-  - [0, :, :]: timestamp [sec]
-  - [1, :, :]: f0 array [Hz]
-  - [2, :, :]: voiced flag(1.0 for voiced, 0.0 for unvoiced) array
-  - [3, :, :]: voiced probability array
-- If "-" is used as the output filename, the app will send output data to stdout.
 
 ### Example using pYIN as a C shared library
 
