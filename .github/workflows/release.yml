@@ -21,7 +21,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --release -F build-binary
       - name: Zip binary
         if: matrix.os != 'windows-latest'
         run: zip "pyin-${{ matrix.os }}.zip" target/release/pyin
