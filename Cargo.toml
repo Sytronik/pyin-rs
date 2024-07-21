@@ -17,6 +17,7 @@ name = "pyin"
 path = "src/lib.rs"
 
 [features]
+blas = ["blas-src", "ndarray/blas", "openblas-src"]
 build-binary = ["clap", "creak", "ndarray/rayon", "rayon"]
 
 [[bin]]
@@ -26,6 +27,7 @@ required-features = ["build-binary"]
 
 [dependencies]
 approx = "0.5.1"
+blas-src = {version = "0.10.0", features = ["openblas"], optional = true}
 clap = {version = "4.5.9", features = ["derive"], optional = true}
 creak = {version = "0.3.0", optional = true}
 getset = "0.1.2"
@@ -36,3 +38,9 @@ ndarray-stats = "0.5.1"
 rayon = {version = "1.10.0", optional = true}
 realfft = "3.3.0"
 statrs = "0.17.1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+openblas-src = {version = "0.10.9", features = ["cblas", "static", "system"], optional = true}
+
+[target.'cfg(not(target_os = "windows"))'.dependencies]
+openblas-src = {version = "0.10.9", features = ["cache", "cblas", "static"], optional = true}
