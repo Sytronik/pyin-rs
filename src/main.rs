@@ -103,7 +103,7 @@ fn main() {
             .into_par_iter()
             .map(|mono| {
                 pyin_exec.clone().pyin(
-                    mono.into(),
+                    mono.as_slice().unwrap(),
                     f64::NAN,
                     Framing::Center(PadMode::Constant(0.)),
                 )
@@ -111,7 +111,7 @@ fn main() {
             .collect()
     } else {
         vec![pyin_exec.pyin(
-            wav.remove_axis(Axis(0)).into(),
+            wav.as_slice().unwrap(),
             f64::NAN,
             Framing::Center(PadMode::Constant(0.)),
         )]

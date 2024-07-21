@@ -10,7 +10,7 @@
 //! ## Usage
 //! ```
 //! use ndarray::prelude::*;
-//! use pyin::{PYINExecutor, PadMode};
+//! use pyin::{PYINExecutor, Framing, PadMode};
 //!
 //! let fmin = 60f64;  // minimum frequency in Hz
 //! let fmax = 600f64; // maximum frequency in Hz
@@ -19,16 +19,15 @@
 //! let (win_length, hop_length, resolution) = (None, None, None);  // None to use default values
 //! let mut pyin_exec = PYINExecutor::new(fmin, fmax, sr, frame_length, win_length, hop_length, resolution);
 //!
-//! // let wav: CowArray<f64, Ix1> = ...;
+//! let wav: Vec<f64> = (0..24000).map(|i| (2. * std::f64::consts::PI * (i as f64) / 200.).sin()).collect();
 //! let fill_unvoiced = f64::NAN;
-//! let center = true;  // If true, the first sample in wav becomes the center of the first frame.
-//! let pad_mode = PadMode::Constant(0.);  // Zero-padding is applied on both sides of the signal. (only if cetner is true)
+//! let framing = Framing::Center(PadMode::Constant(0.));  // Zero-padding is applied on both sides of the signal. (only if cetner is true)
 //!
 //! // timestamp (Array1<f64>) - contains the timestamp (in seconds) of each frames
 //! // f0 (Array1<f64>) contains the pitch estimate in Hz. (NAN if unvoiced)
 //! // voiced_flag (Array1<bool>) contains whether the frame is voiced or not.
 //! // voiced_prob (Array1<f64>) contains the probability of the frame is voiced.
-//! let (timestamp, f0, voiced_flag, voiced_prob) = pyin_exec.pyin(wav, center, pad_mode);
+//! let (timestamp, f0, voiced_flag, voiced_prob) = pyin_exec.pyin(&wav, fill_unvoiced, framing);
 //! ```
 //!
 //! [^paper]: Mauch, Matthias, and Simon Dixon. “pYIN: A fundamental frequency estimator using probabilistic threshold distributions.” 2014 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP). IEEE, 2014.
