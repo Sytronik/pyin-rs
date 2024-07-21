@@ -12,17 +12,18 @@ For easy translation from Python + Numpy to Rust, the implementation is written 
 ## Build & Run
 
 You can use this both as an executable binary and as a library (C shared library and Rust library).
+When you build, you can use BLAS by turning on the `blas` feature flag.
 
 ### As an executable binary
 
 ```
-cargo run --release <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
+cargo run [-F blas] --release <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
 ```
 
 or
 
 ```
-cargo build --release
+cargo build [-F blas] --release
 ./target/release/pyin <input_file> <output_npy_file> <fmin> <fmax> --frame_ms <frame length in miliseconds>
 ```
 
@@ -43,7 +44,7 @@ cargo build --release
 The example is in `test/test.c`. To build and run it with GCC,
 
 ```
-./compile_test.sh
+./compile_test.sh [-F blas]
 LD_LIBRARY_PATH=target/release ./test_pyin
 ```
 
@@ -53,7 +54,7 @@ Add the following to your `Cargo.toml`:
 
 ```
 [dependencies]
-pyin = "1.0"
+pyin = "1.1.0"
 ```
 
 ## TODO
