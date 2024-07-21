@@ -53,7 +53,8 @@ use realfft::num_traits::Float;
 /// and wish to know the maximum likelihood assignment of states for the
 /// corresponding days, which we compute with the Viterbi algorithm below.
 ///
-/// ```rust
+/// ```ignore
+/// use ndarray::prelude::*;
 /// let p_init = Array1::from_vec(vec![0.6f64, 0.4]);
 /// let p_emit = Array2::from_shape_vec((2, 3), vec![0.5f64, 0.4, 0.1, 0.1, 0.3, 0.6]).unwrap();
 /// let p_trans = Array2::from_shape_vec((2, 2), vec![0.7f64, 0.3, 0.4, 0.6]).unwrap();

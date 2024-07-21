@@ -101,11 +101,9 @@ pub unsafe extern "C" fn pyin(
     } else {
         return 1;
     };
-    let sr = if sr > 0 {
-        sr as u32
-    } else {
+    if sr == 0 {
         return 1;
-    };
+    }
     if fmin < 0. {
         return 1;
     }
@@ -117,10 +115,10 @@ pub unsafe extern "C" fn pyin(
     } else {
         return 1;
     };
-    let win_length = (win_length > 0).then(|| win_length as usize);
-    let hop_length = (hop_length > 0).then(|| hop_length as usize);
+    let win_length = (win_length > 0).then_some(win_length as usize);
+    let hop_length = (hop_length > 0).then_some(hop_length as usize);
     let resolution = match resolution {
-        x if 0. < x && x < 1. => Some(x as f64),
+        x if 0. < x && x < 1. => Some(x),
         x if x <= 0. => None,
         _ => return 1,
     };
@@ -129,11 +127,11 @@ pub unsafe extern "C" fn pyin(
         1 => PadMode::Reflect,
         _ => return 1,
     };
-    let wav = slice::from_raw_parts(input, length).into();
+    let wav = slice::from_raw_parts(input, length);
 
     let mut pyin_executor = PYINExecutor::<c_double>::new(
-        fmin as f64,
-        fmax as f64,
+        fmin,
+        fmax,
         sr,
         frame_length,
         win_length,

@@ -43,6 +43,7 @@ where
     <A as MaybeNan>::NotNan: Ord,
 {
     fmin: A,
+    #[allow(dead_code)]
     fmax: A,
     sr: u32,
     frame_length: usize,

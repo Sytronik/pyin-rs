@@ -14,7 +14,7 @@ where
     type WithOwnedA = ArrayBase<OwnedRepr<A>, D>;
     fn roll(&self, shift: isize, axis: Axis) -> Self::WithOwnedA {
         let length = self.shape()[axis.index()];
-        let abs_shift = shift.abs() as usize;
+        let abs_shift = shift.unsigned_abs();
         if shift == 0 {
             return self.to_owned();
         }
